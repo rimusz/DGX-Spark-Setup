@@ -1,28 +1,18 @@
 # Skill: spark-inference
 
-Operate DGX Spark as exclusive LLM inference (`sm` / `vo`) on the **local network only**.
+Operate DGX Spark **DeepSeek-only** inference on the local network.
 
 ## Commands
 
-- On Spark: `sm status|start|stop|pull`, `vo …`, `hf --version`
-- Stability: `sudo apply-gb10-clock-cap.sh` (300–2200 MHz), `systemctl status gb10-clock-cap`
+- `sm status|start|stop|pull` (`deepseek` / `deepseek-ds4`)
+- `sudo apply-gb10-clock-cap.sh` (300–2200 MHz)
 - From LAN laptop: `./scripts/spark-ops/update-spark.sh`, `spark-llms`
 
-## Ports
+## Port
 
-| Model | Port |
-|-------|------|
-| qwen | 8000 |
-| deepseek (EXL3) | 8001 |
-| ling | 8002 |
+DeepSeek → **8001**
 
-DeepSeek recipe: https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark
-
-## Boot / power-loss
-
-- Firmware AC restore → power on
-- Clock cap systemd unit
-- Last `sm start` → `spark-boot.sh` @reboot
+Recipe: https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark
 
 ## Docs
 

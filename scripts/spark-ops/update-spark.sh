@@ -8,7 +8,7 @@
 #   ./scripts/spark-ops/update-spark.sh --local            # already on Spark (git pull if clone, then setup)
 #   ./scripts/spark-ops/update-spark.sh --host ${SPARK_HOST:-user@spark}
 #   ./scripts/spark-ops/update-spark.sh --images           # also sm pull all (images/weights; does not start models)
-#   ./scripts/spark-ops/update-spark.sh --images qwen      # only pull named model(s): qwen|deepseek|ling|all
+#   ./scripts/spark-ops/update-spark.sh --images deepseek      # only pull named model(s): deepseek|deepseek-ds4|all
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -207,5 +207,5 @@ fi
 
 remote_update
 echo ""
-echo "From this machine (LAN): curl -sf http://spark-local:8000/v1/models | head -c 120; echo"
+echo "From this machine (LAN): curl -sf http://spark-local:8001/v1/models | head -c 120; echo"
 echo "  (or: sm status on Spark)"

@@ -1,36 +1,31 @@
 ---
 name: spark-inference
 description: >
-  Operate DGX Spark as LLM inference only (sm/vo, Qwen/DeepSeek/Ling exclusive
-  switcher, LAN-only). Use when Spark is down, switching models, probing
-  :8000/:8001/:8002, applying the GB10 2200 MHz clock cap, or updating helpers.
+  Operate DGX Spark DeepSeek-only inference (sm, :8001 EXL3, LAN-only,
+  GB10 2200 MHz clock cap). Use when DeepSeek is down, pulling/starting,
+  probing :8001, or updating Spark helpers.
 ---
 
-# DGX Spark inference ops
+# DGX Spark DeepSeek ops
 
 ## Goal
 
-Keep **Spark** serving one OpenAI-compatible model at a time on the **local network**.
+Keep **DeepSeek V4 Flash** serving on **:8001** over the **local network**.
 
 ## Commands (on Spark)
 
 ```bash
 sm status
-sm start qwen          # :8000 vLLM
+sm pull deepseek
 sm start deepseek      # :8001 EXL3, 8 seqs / 256k / K5
 sm start deepseek-ds4  # :8001 ds4 GGUF backup
-sm start ling          # :8002
 sm stop
-sm pull qwen|deepseek|ling|all
-vo status|logs|restart   # Qwen Docker only
-hf --version
-ensure-hf-cli.sh --upgrade
-ensure-spark-dashboard.sh --upgrade   # host metrics UI :8787 (LAN bind)
-sudo apply-gb10-clock-cap.sh          # 300–2200 MHz; survives reboot
+sudo apply-gb10-clock-cap.sh
 systemctl status gb10-clock-cap
+ensure-spark-dashboard.sh --upgrade
 ```
 
-DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark) (`sm pull deepseek` → `~/code/dsv4-exl3`).
+Recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark).
 
 ## From a LAN laptop
 
@@ -38,37 +33,19 @@ DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rim
 export SPARK_HOST=user@YOUR_LAN_IP
 export SPARK_LAN_IP=YOUR_LAN_IP
 ./scripts/spark-ops/update-spark.sh
-./scripts/spark-ops/update-spark.sh --images
 spark-llms
-curl -sf http://spark-local:8000/v1/models
-curl -sf http://spark-local:8787/api/health
+curl -sf http://spark-local:8001/v1/models
 ```
 
-## Client base URLs (LAN only)
+## Client URL
 
-| Slot | Port | Example |
-|------|------|---------|
-| qwen | 8000 | `http://spark-local:8000/v1` |
-| deepseek | 8001 | `http://spark-local:8001/v1` |
-| ling | 8002 | `http://spark-local:8002/v1` |
-
-API key: unused / `not-needed`. Model id: from `GET …/v1/models`. Prefer `spark-local` hosts entry or raw LAN IP. No Tailscale.
+`http://spark-local:8001/v1` — no Tailscale, no Qwen/Ling.
 
 ## Power loss
 
-- Firmware power-on after AC restore
-- `gb10-clock-cap.service` + last `sm start` → `spark-boot.sh`
+Firmware AC restore + clock-cap unit + last `sm start` → `spark-boot.sh`.
 
 ## Safety
 
-- No agents or messaging bots on Spark.
-- One heavy model at a time on GB10.
+- DeepSeek only on this host.
 - Do not paste HF tokens into chat.
-- `hf` is for Hub download/cache only — not a model server.
-
-## Related
-
-- Skill card: `docs/skills/spark-inference.md`
-- Runbook: `docs/runbooks/spark-inference.md`
-- Full guide: `spark/README.md`
-- Contract: `AGENTS.md`

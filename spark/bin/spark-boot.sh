@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# After reboot, start whichever model last `sm start` armed.
-# File: ~/.config/spark-models/autostart  (qwen|deepseek|deepseek-ds4|ling)
+# After reboot, start DeepSeek if last `sm start` armed it.
+# File: ~/.config/spark-models/autostart  (deepseek|deepseek-ds4)
 # Legacy: ~/.config/ds4/autostart → deepseek (EXL3 default)
-# Does NOT run the DeepSeek installer. Cron: @reboot sleep 30 && ~/bin/spark-boot.sh
+# Cron: @reboot sleep 30 && ~/bin/spark-boot.sh
 set -euo pipefail
 
 export PATH="${HOME}/bin:${HOME}/.local/bin:${PATH}"
@@ -20,7 +20,7 @@ elif [ -f "${LEGACY}" ]; then
 fi
 
 case "${model}" in
-  qwen|deepseek|deepseek-ds4|ling) ;;
+  deepseek|deepseek-ds4) ;;
   *) exit 0 ;;
 esac
 
@@ -28,20 +28,6 @@ echo "[$(date)] spark-boot: last model=${model}" >> "${LOG}"
 
 url_ok() {
   curl -sf --connect-timeout 2 "http://127.0.0.1:${1}/v1/models" >/dev/null 2>&1
-}
-
-boot_qwen() {
-  url_ok 8000 && exit 0
-  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx vllm-qwen35; then
-    exit 0
-  fi
-  echo "[$(date)] spark-boot: starting qwen" >> "${LOG}"
-  if [ -x "${HOME}/bin/vllm-qwen35-docker.sh" ]; then
-    PORT=8000 "${HOME}/bin/vllm-qwen35-docker.sh" >> "${LOG}" 2>&1
-  else
-    echo "[$(date)] spark-boot: vllm-qwen35-docker.sh missing" >> "${LOG}"
-    exit 1
-  fi
 }
 
 boot_deepseek() {
@@ -109,34 +95,7 @@ boot_deepseek_ds4() {
   disown || true
 }
 
-boot_ling() {
-  url_ok 8002 && exit 0
-  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx ling-3.0-flash-int4; then
-    exit 0
-  fi
-  local repo="${SPARK_REPO_DIR:-${HOME}/DGX-Spark-Setup/spark}"
-  local start="${repo}/models/ling/start.sh"
-  if [ ! -f "${start}" ]; then
-    echo "[$(date)] spark-boot: ${start} missing" >> "${LOG}"
-    exit 1
-  fi
-  echo "[$(date)] spark-boot: starting ling" >> "${LOG}"
-  mkdir -p "${HOME}/.spark-models/ling"
-  cd "${HOME}/.spark-models/ling"
-  PORT=8002 \
-    CTX="${CTX:-262144}" \
-    MEM_FRACTION_STATIC="${MEM_FRACTION_STATIC:-0.70}" \
-    MAX_RUNNING_REQUESTS="${MAX_RUNNING_REQUESTS:-4}" \
-    MAX_MAMBA_CACHE_SIZE="${MAX_MAMBA_CACHE_SIZE:-16}" \
-    ENABLE_NEXTN="${ENABLE_NEXTN:-1}" \
-    DOCKER_MEMORY="${DOCKER_MEMORY:-100g}" \
-    HF_HOME="${HF_HOME:-${HOME}/.cache/huggingface}" \
-    bash "${start}" >> "${LOG}" 2>&1
-}
-
 case "${model}" in
-  qwen) boot_qwen ;;
   deepseek) boot_deepseek ;;
   deepseek-ds4) boot_deepseek_ds4 ;;
-  ling) boot_ling ;;
 esac

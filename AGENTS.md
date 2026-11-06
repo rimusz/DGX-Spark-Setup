@@ -1,49 +1,32 @@
-# AGENTS.md — DGX Spark setup
+# AGENTS.md — DGX Spark DeepSeek setup
 
-Public operating notes for this repository. Spark is **LLM inference only**, **LAN-only** access.
+Spark is **DeepSeek inference only**, **LAN-only** access.
 
 ## Role
 
 - Host: NVIDIA DGX Spark (GB10 / aarch64)
-- Exclusive model switcher: `sm` / `spark-model` (one heavy model at a time)
-- DeepSeek EXL3 recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark) (`sm pull deepseek` → `~/code/dsv4-exl3`)
-- **No Tailscale** — clients reach Spark over the local network only
+- Model: DeepSeek V4 Flash EXL3 on **:8001** (`sm start deepseek`)
+- Backup: `sm start deepseek-ds4` (ds4 GGUF)
+- Recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark)
+- **No Tailscale**, **no Qwen/Ling**
 
-## Ports
-
-| Model | Command | Port |
-|-------|---------|------|
-| Qwen | `sm start qwen` | 8000 |
-| DeepSeek EXL3 | `sm start deepseek` | 8001 |
-| DeepSeek GGUF backup | `sm start deepseek-ds4` | 8001 |
-| Ling | `sm start ling` | 8002 |
-
-## Install (on Spark)
+## Install
 
 ```bash
 git clone https://github.com/rimusz/DGX-Spark-Setup.git ~/DGX-Spark-Setup
 cd ~/DGX-Spark-Setup
 bash scripts/spark-ops/setup-spark.sh
-sudo ~/bin/spark-privileged-bootstrap.sh   # docker + GB10 clock cap 2200 MHz
-newgrp docker
+sudo ~/bin/spark-privileged-bootstrap.sh
 sm pull deepseek && sm start deepseek
 ```
 
-From a LAN laptop:
+## Stability
 
-```bash
-export SPARK_HOST=user@YOUR_LAN_IP
-export SPARK_LAN_IP=YOUR_LAN_IP
-./scripts/spark-ops/update-spark.sh
-```
-
-## Stability (power / thermal)
-
-- Cap GPU clocks: `sudo apply-gb10-clock-cap.sh` → **300–2200 MHz** (systemd persists across reboot)
+- `sudo apply-gb10-clock-cap.sh` → **300–2200 MHz**
 - Firmware: restore AC → power on
-- Last `sm start` returns after reboot via `spark-boot.sh`
+- Last `sm start` → `spark-boot.sh` @reboot
 
-## Skills (agents)
+## Skills
 
 | Tool | Path |
 |------|------|
@@ -52,10 +35,7 @@ export SPARK_LAN_IP=YOUR_LAN_IP
 | Agents | `.agents/skills/spark-inference/` |
 | Codex | `.codex/skills/spark-inference/` |
 
-Docs: `docs/runbooks/spark-inference.md`, `docs/skills/spark-inference.md`, `spark/README.md`.
-
 ## Safety
 
 - No agents / messaging bots on Spark.
-- Do not commit `HF_TOKEN` or `~/.hf_env`.
-- Do not publish real LAN IPs in public forks.
+- Do not commit `HF_TOKEN` or publish real LAN IPs.

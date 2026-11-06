@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ensure Hugging Face `hf` CLI is installed under ~/.local/bin (login PATH).
-# Used by setup-spark.sh and model download helpers (Qwen / Ling / sm pull).
+# Used by setup-spark.sh and DeepSeek pull helpers (sm pull).
 #
 # Usage:
 #   ensure-hf-cli.sh           # install if missing

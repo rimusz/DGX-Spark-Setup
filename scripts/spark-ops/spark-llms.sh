@@ -1,33 +1,18 @@
 #!/bin/bash
-# spark-llms — quick probe of all three Spark model slots (LAN only).
-# Model names match sm / spark-model catalog (e.g. nvidia/Qwen3.6-35B-A3B-NVFP4).
-# Prefer spark-local (/etc/hosts → YOUR_LAN_IP); avoid mDNS AAAA for long-lived clients.
+# spark-llms — probe DeepSeek on :8001 (LAN only).
 set -euo pipefail
 
 SPARK_LOCAL="${SPARK_LOCAL:-spark-local}"
 SPARK_LAN_IP="${SPARK_LAN_IP:-}"
-SPARK_MDNS="${SPARK_MDNS:-spark.local}"
-# Optional: also show/probe mDNS (often slow / IPv6-first). Set SPARK_PROBE_MDNS=1
-SPARK_PROBE_MDNS="${SPARK_PROBE_MDNS:-0}"
-
-catalog_model() {
-    case "$1" in
-        qwen)     echo "nvidia/Qwen3.6-35B-A3B-NVFP4" ;;
-        deepseek) echo "DeepSeek-V4-Flash (EXL3 0731)" ;;
-        ling)     echo "inclusionAI/Ling-3.0-flash-int4" ;;
-        *)        echo "?" ;;
-    esac
-}
+PORT=8001
 
 slot_live() {
-    local base="$1"
-    curl -sf --connect-timeout 3 "${base%/}/models" >/dev/null 2>&1
+  curl -sf --connect-timeout 3 "${1%/}/models" >/dev/null 2>&1
 }
 
 discover_api_model() {
-    local base="$1"
-    curl -sf --connect-timeout 3 "${base%/}/models" 2>/dev/null \
-        | python3 -c '
+  curl -sf --connect-timeout 3 "${1%/}/models" 2>/dev/null \
+    | python3 -c '
 import sys, json
 try:
     d = json.load(sys.stdin)
@@ -39,81 +24,42 @@ except Exception:
 ' 2>/dev/null || true
 }
 
-engine_for() {
-    case "$1" in
-        qwen)     echo "vLLM Docker" ;;
-        deepseek) echo "EXL3 / SparkInfer" ;;
-        ling)     echo "SGLang Docker" ;;
-        *)        echo "?" ;;
-    esac
-}
-
-echo "Spark LLM Slots (LAN only)"
-echo "──────────────────────────"
-echo -n "Probing: ${SPARK_LOCAL}"
+base_local="http://${SPARK_LOCAL}:${PORT}/v1"
+base_ip=""
 if [ -n "${SPARK_LAN_IP}" ]; then
-    echo -n "  |  ${SPARK_LAN_IP}"
+  base_ip="http://${SPARK_LAN_IP}:${PORT}/v1"
 fi
-echo
-if [ "$SPARK_PROBE_MDNS" = "1" ]; then
-    echo "         (+ mDNS ${SPARK_MDNS})"
+
+echo "Spark DeepSeek (LAN only)"
+echo "─────────────────────────"
+echo "Probing: ${SPARK_LOCAL}${SPARK_LAN_IP:+ | ${SPARK_LAN_IP}}"
+echo ""
+
+via=""
+api_id=""
+if slot_live "${base_local}"; then
+  via="LAN ${SPARK_LOCAL}"
+  api_id="$(discover_api_model "${base_local}")"
+elif [ -n "${base_ip}" ] && slot_live "${base_ip}"; then
+  via="LAN ${SPARK_LAN_IP}"
+  api_id="$(discover_api_model "${base_ip}")"
+fi
+
+if [ -n "${via}" ]; then
+  echo "  ✅ deepseek  :${PORT}/v1  [EXL3 / SparkInfer or ds4]  via ${via}"
+  if [ -n "${api_id}" ]; then
+    echo "     api=${api_id}"
+  fi
+else
+  echo "  ○  deepseek  :${PORT}/v1  (not serving)"
+fi
+echo "     LAN:        ${base_local}"
+if [ -n "${base_ip}" ]; then
+  echo "     LAN IP:     ${base_ip}"
 fi
 echo ""
 
-any_live=false
-
-probe_one() {
-    local slot="$1" port="$2"
-    local base_local="http://${SPARK_LOCAL}:${port}/v1"
-    local base_ip=""
-    local base_mdns="http://${SPARK_MDNS}:${port}/v1"
-    local catalog engine via api_id=""
-
-    catalog="$(catalog_model "$slot")"
-    engine="$(engine_for "$slot")"
-    if [ -n "${SPARK_LAN_IP}" ]; then
-        base_ip="http://${SPARK_LAN_IP}:${port}/v1"
-    fi
-
-    if slot_live "$base_local"; then
-        via="LAN ${SPARK_LOCAL}"
-        api_id="$(discover_api_model "$base_local")"
-        any_live=true
-    elif [ -n "${base_ip}" ] && slot_live "$base_ip"; then
-        via="LAN ${SPARK_LAN_IP}"
-        api_id="$(discover_api_model "$base_ip")"
-        any_live=true
-    elif [ "$SPARK_PROBE_MDNS" = "1" ] && slot_live "$base_mdns"; then
-        via="mDNS ${SPARK_MDNS}"
-        api_id="$(discover_api_model "$base_mdns")"
-        any_live=true
-    else
-        via=""
-    fi
-
-    if [ -n "$via" ]; then
-        echo "  ✅ ${slot}  :${port}/v1  model=${catalog}  [${engine}]  via ${via}"
-        if [ -n "$api_id" ] && [ "$api_id" != "$catalog" ]; then
-            echo "     api=${api_id}"
-        fi
-    else
-        echo "  ○  ${slot}  :${port}/v1  model=${catalog}  [${engine}]  (not serving)"
-    fi
-    echo "     LAN:        ${base_local}"
-    if [ -n "${base_ip}" ]; then
-        echo "     LAN IP:     ${base_ip}"
-    fi
-    if [ "$SPARK_PROBE_MDNS" = "1" ]; then
-        echo "     mDNS:       ${base_mdns}"
-    fi
-    echo ""
-}
-
-probe_one "qwen"     8000
-probe_one "deepseek" 8001
-probe_one "ling"     8002
-
-if ! $any_live; then
-    echo "⚠️  No model serving.  On Spark: sm status ; sm start qwen"
-    echo ""
+if [ -z "${via}" ]; then
+  echo "⚠️  Not serving. On Spark: sm status ; sm start deepseek"
+  echo ""
 fi

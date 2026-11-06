@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# One-time root bootstrap on DGX Spark (apt, docker group, GB10 clock cap, optional systemd).
-# LAN-only by design — does not install Tailscale.
+# One-time root bootstrap on DGX Spark (apt, docker group, GB10 clock cap).
+# LAN-only by design — does not install Tailscale. DeepSeek-only stack.
 # Run: sudo ./spark-privileged-bootstrap.sh
 set -euo pipefail
 
@@ -20,7 +20,7 @@ else
   REPO_HINT=""
 fi
 
-echo "=== [1/6] apt update + essentials ==="
+echo "=== [1/5] apt update + essentials ==="
 apt-get update
 apt-get -y full-upgrade
 apt-get -y install \
@@ -30,7 +30,7 @@ apt-get -y install \
   htop jq tmux unzip rsync
 apt-get -y autoremove --purge || true
 
-echo "=== [2/6] docker group + enable Docker on boot ==="
+echo "=== [2/5] docker group + enable Docker on boot ==="
 if getent group docker >/dev/null 2>&1; then
   usermod -aG docker "${SPARK_USER}" || true
   echo "Added ${SPARK_USER} to docker (re-login / newgrp docker)"
@@ -39,7 +39,7 @@ if command -v systemctl >/dev/null 2>&1; then
   systemctl enable --now docker 2>/dev/null || true
 fi
 
-echo "=== [3/6] GB10 GPU clock cap (300–2200 MHz, survives reboot) ==="
+echo "=== [3/5] GB10 GPU clock cap (300–2200 MHz, survives reboot) ==="
 APPLY=""
 for cand in \
   "${SCRIPT_DIR}/apply-gb10-clock-cap.sh" \
@@ -58,28 +58,13 @@ else
   echo "  sudo ~/bin/apply-gb10-clock-cap.sh"
 fi
 
-echo "=== [4/6] systemd unit (native vLLM path, optional; leave disabled) ==="
-UNIT_SRC="/home/${SPARK_USER}/src/vllm-qwen35.service"
-UNIT_REPO="/home/${SPARK_USER}/DGX-Spark-Setup/spark/systemd/vllm-qwen35.service"
-if [ -f "${UNIT_SRC}" ] || [ -f "${UNIT_REPO}" ]; then
-  SRC="${UNIT_SRC}"
-  [ -f "${SRC}" ] || SRC="${UNIT_REPO}"
-  install -m 644 "${SRC}" /etc/systemd/system/vllm-qwen35.service
-  systemctl daemon-reload
-  # Docker is production — do not enable native unit on boot
-  systemctl disable --now vllm-qwen35.service 2>/dev/null || true
-  echo "Installed vllm-qwen35.service (disabled; Docker is production)"
-fi
-
-echo "=== [5/6] ufw allow inference ports if firewall active (LAN) ==="
+echo "=== [4/5] ufw allow DeepSeek + dashboard if firewall active (LAN) ==="
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
-  ufw allow 8000/tcp comment "Spark Qwen OpenAI" || true
   ufw allow 8001/tcp comment "Spark DeepSeek OpenAI" || true
-  ufw allow 8002/tcp comment "Spark Ling OpenAI" || true
   ufw allow 8787/tcp comment "Spark dashboard" || true
 fi
 
-echo "=== [6/6] firmware reminder: power-on after AC restore ==="
+echo "=== [5/5] firmware reminder: power-on after AC restore ==="
 echo "In DGX Spark BIOS / BMC / NVIDIA DGX Dashboard, set \"Restore AC Power Loss\""
 echo "(or equivalent) to Power On so the host comes back after outages."
 echo "Software then: Docker enable + gb10-clock-cap + crontab @reboot → spark-boot.sh."
@@ -91,5 +76,5 @@ echo "  bash ~/DGX-Spark-Setup/scripts/spark-ops/setup-spark.sh"
 echo "  sm pull deepseek && sm start deepseek"
 echo
 echo "Access is LAN-only (no Tailscale). From a LAN client:"
-echo "  http://spark-local:800N/v1   # after add-spark-local-hosts.sh"
-echo "  http://YOUR_LAN_IP:800N/v1"
+echo "  http://spark-local:8001/v1"
+echo "  http://YOUR_LAN_IP:8001/v1"
