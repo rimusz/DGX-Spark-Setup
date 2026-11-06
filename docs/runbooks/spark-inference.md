@@ -24,6 +24,15 @@ Recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepS
 3. Last `sm start` → crontab `@reboot` → `spark-boot.sh`.
 4. Verify: `sm status` ; `curl -sf http://127.0.0.1:8001/v1/models`
 
+### Headless (no GUI)
+
+```bash
+sudo spark-headless on && sudo reboot   # free ~10–15 GiB unified RAM
+spark-headless status
+```
+
+Do not purge `ubuntu-desktop`.
+
 ## Client URL
 
 `http://spark-local:8001/v1` (set `SPARK_LAN_IP` + `add-spark-local-hosts.sh`) or `http://YOUR_LAN_IP:8001/v1`.

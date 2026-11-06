@@ -22,6 +22,7 @@ sm start deepseek-ds4  # :8001 ds4 GGUF backup
 sm stop
 sudo apply-gb10-clock-cap.sh
 systemctl status gb10-clock-cap
+sudo spark-headless on && sudo reboot  # optional: no GUI
 ensure-spark-dashboard.sh --upgrade
 ```
 
@@ -44,6 +45,7 @@ curl -sf http://spark-local:8001/v1/models
 ## Power loss
 
 Firmware AC restore + clock-cap unit + last `sm start` → `spark-boot.sh`.
+Optional: `sudo spark-headless on` (no GUI, more unified RAM).
 
 ## Safety
 

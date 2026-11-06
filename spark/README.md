@@ -29,6 +29,7 @@ spark/
 │   ├── spark-boot.sh               # @reboot last sm start
 │   ├── apply-gb10-clock-cap.sh     # nvidia-smi -lgc 300,2200 + systemd
 │   ├── revert-gb10-clock-cap.sh
+│   ├── spark-headless.sh           # multi-user vs graphical (free RAM)
 │   ├── ensure-hf-cli.sh
 │   ├── ensure-spark-dashboard.sh
 │   └── spark-privileged-bootstrap.sh
@@ -73,6 +74,21 @@ curl -sf http://127.0.0.1:8001/v1/models
 ```
 
 Community prior art for the clock cap: [DGX-Spark-Hard-Poweroff-Fix](https://github.com/tonyd2wild/DGX-Spark-Hard-Poweroff-Fix).
+
+---
+
+## Headless (disable GUI)
+
+GB10 unified memory is shared with the desktop. Booting without GNOME often frees **~10–15 GiB** for KV cache. SSH/LAN keep working.
+
+```bash
+spark-headless status
+sudo spark-headless on && sudo reboot    # multi-user.target — no GUI after reboot
+sudo spark-headless now                  # drop GUI this boot only
+sudo spark-headless off && sudo reboot   # restore graphical desktop
+```
+
+Do **not** `apt purge ubuntu-desktop` — that can remove Spark platform packages. Leave the desktop installed; `multi-user.target` simply never starts it.
 
 ---
 

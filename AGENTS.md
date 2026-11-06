@@ -23,6 +23,7 @@ sm pull deepseek && sm start deepseek
 ## Stability
 
 - `sudo apply-gb10-clock-cap.sh` → **300–2200 MHz**
+- `sudo spark-headless on && sudo reboot` → no GUI, more unified RAM
 - Firmware: restore AC → power on
 - Last `sm start` → `spark-boot.sh` @reboot
 

@@ -8,7 +8,7 @@ Public tooling to run **DeepSeek V4 Flash** (OpenAI-compatible) on one **NVIDIA 
 
 **Access:** **LAN only** (no Tailscale) via `spark-local` / LAN IP.
 
-**Stability:** GB10 GPU clock cap **300–2200 MHz** (systemd, survives reboot) + firmware AC restore + `@reboot` → `spark-boot.sh`.
+**Stability:** GB10 GPU clock cap **300–2200 MHz**, optional **headless** (`spark-headless on`) to free unified RAM, firmware AC restore + `@reboot` → `spark-boot.sh`.
 
 ---
 
@@ -36,6 +36,9 @@ newgrp docker
 sm pull deepseek
 sm start deepseek
 sm status
+
+# optional: disable GUI for more unified RAM
+sudo spark-headless on && sudo reboot
 ```
 
 From a laptop on the same LAN:
