@@ -1,0 +1,10 @@
+.DS_Store
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+~/.hf_env
+**/.vllm/
+**/.tiktoken_cache/
+**/__pycache__/

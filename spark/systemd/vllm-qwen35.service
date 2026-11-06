@@ -1,0 +1,32 @@
+[Unit]
+# Replace YOUR_LINUX_USER with the Spark login that owns ~/bin and the HF cache.
+Description=vLLM OpenAI server (Qwen3.6-35B-A3B-NVFP4 on DGX Spark) — native path
+After=network-online.target
+Wants=network-online.target
+# Prefer Docker production path (vllm-qwen35-docker.sh). Keep this unit disabled:
+#   sudo systemctl disable --now vllm-qwen35
+
+[Service]
+Type=simple
+User=YOUR_LINUX_USER
+Group=YOUR_LINUX_USER
+WorkingDirectory=/home/YOUR_LINUX_USER
+Environment=HOME=/home/YOUR_LINUX_USER
+Environment=PATH=/home/YOUR_LINUX_USER/bin:/home/YOUR_LINUX_USER/vllm-install/.vllm/bin:/home/YOUR_LINUX_USER/.local/bin:/usr/local/cuda/bin:/usr/bin:/bin
+Environment=CUDA_HOME=/usr/local/cuda
+Environment=TORCH_CUDA_ARCH_LIST=12.1a
+Environment=VLLM_USE_FLASHINFER_MXFP4_MOE=1
+Environment=VLLM_MXFP4_USE_MARLIN=1
+Environment=HF_XET_HIGH_PERFORMANCE=1
+# Optional tuning:
+# Environment=VLLM_GPU_MEM_UTIL=0.50
+# Environment=VLLM_MAX_MODEL_LEN=131072
+ExecStart=/home/YOUR_LINUX_USER/bin/vllm-qwen35-serve.sh
+Restart=on-failure
+RestartSec=15
+TimeoutStartSec=0
+LimitNOFILE=1048576
+Nice=-5
+
+[Install]
+WantedBy=multi-user.target
