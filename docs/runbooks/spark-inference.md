@@ -19,7 +19,7 @@ Recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepS
 
 ### Boot / power-loss
 
-1. Firmware “Restore AC Power Loss” → Power On.
+1. Firmware **After Power Loss → Auto Boot** (Restore AC → Power On). How-to: [spark/README.md](../../spark/README.md) § Set “power on after power loss” — UEFI path **or** headless [EFI-var script](https://github.com/Fheodoor01/DGX-Spark---Power-on-boot-) (at your own risk).
 2. `gb10-clock-cap.service` → `nvidia-smi -lgc 300,2200`.
 3. Last `sm start` → crontab `@reboot` → `spark-boot.sh`.
 4. Verify: `sm status` ; `curl -sf http://127.0.0.1:8001/v1/models`

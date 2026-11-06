@@ -62,7 +62,9 @@ Default EXL3 profile: **8 seqs / 256k / K5** (`MAX_NUM_SEQS=8`, `MAX_MODEL_LEN=2
 
 ## Boot / power-loss
 
-1. Firmware **Restore AC Power Loss → Power On**.
+After AC returns, the **machine** must power on by itself; then OS boot helpers bring DeepSeek back:
+
+1. Firmware **After Power Loss → Auto Boot** (aka Restore AC Power Loss → Power On) — see below.
 2. `gb10-clock-cap.service` reapplies `nvidia-smi -lgc 300,2200` every boot.
 3. Last `sm start deepseek|deepseek-ds4` arms crontab `@reboot` → `spark-boot.sh` (`sm stop` clears it).
 
@@ -74,6 +76,39 @@ curl -sf http://127.0.0.1:8001/v1/models
 ```
 
 Community prior art for the clock cap: [DGX-Spark-Hard-Poweroff-Fix](https://github.com/tonyd2wild/DGX-Spark-Hard-Poweroff-Fix).
+
+### Set “power on after power loss”
+
+Linux cannot turn the box on while it is off. This is a **UEFI** setting. Official names (NVIDIA [Advanced Tab](https://docs.nvidia.com/dgx/dgx-spark-uefi/advanced-tab.html)):
+
+| Setting | Value for auto-boot after AC restore |
+|---------|--------------------------------------|
+| **Advanced → Power On Behavior → After Power Loss Behavior** | **`Auto Boot`** (not `Power Button Press`) |
+
+#### Option A — UEFI Setup (official)
+
+1. Attach a display/keyboard (or use BMC/KVM if you have one).
+2. Reboot and enter UEFI Setup (Del / F2 at the firmware splash — vendor key as shown on screen).
+3. **Advanced → Power On Behavior → After Power Loss Behavior → `Auto Boot`**.
+4. **Save & Exit** (or Save Changes and Reset).
+
+#### Option B — headless script (community, at your own risk)
+
+No display? Patch the AMI `Setup` EFI variable from Linux. Third-party tool (not NVIDIA-supported; backs up before write; `--revert` available):
+
+[Fheodoor01/DGX-Spark---Power-on-boot-](https://github.com/Fheodoor01/DGX-Spark---Power-on-boot-)
+
+```bash
+sudo apt-get install -y efivar
+git clone https://github.com/Fheodoor01/DGX-Spark---Power-on-boot-.git ~/DGX-Spark-Power-on-boot
+cd ~/DGX-Spark-Power-on-boot
+sudo ./dgx-spark-auto-poweron.sh --check    # show current state
+sudo ./dgx-spark-auto-poweron.sh            # enable Power On / Auto Boot
+sudo reboot                                 # required for the change to take effect
+# later: sudo ./dgx-spark-auto-poweron.sh --revert
+```
+
+Spark has **no** rack-style Redfish `PowerRestorePolicy` for this. A clean `poweroff` exercises the same firmware path as AC loss for testing: after `Auto Boot`, the unit should power back on within ~30s.
 
 ---
 
