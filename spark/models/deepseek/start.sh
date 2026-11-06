@@ -12,7 +12,7 @@
 # This is a thin, idempotent wrapper over the repo's official installer:
 #   * first run : verify host, clone+build the pinned fork, download the
 #     ~110 GiB GGUF set, smoke-test, install ds4-serve (no server start).
-#   * always    : start ds4-serve with --host 0.0.0.0 so LAN/Tailscale
+#   * always    : start ds4-serve with --host 0.0.0.0 so LAN
 #     clients can reach it (upstream installer defaults to 127.0.0.1).
 #
 # Locations (installer defaults, override via env):
@@ -28,7 +28,7 @@
 #
 # Env:
 #   PORT   listen port (default 8888; spark-model uses 8001)
-#   HOST   bind address (default 0.0.0.0 for LAN/Tailscale)
+#   HOST   bind address (default 0.0.0.0 for LAN)
 #   CTX    context size (default 524288 / 512k; Entrpi installer default)
 #   KV_DISK_DIR          disk KV prefix-cache dir (default ~/ds4-kv; empty/`0`/off disables)
 #   KV_DISK_SPACE_MB     disk budget (default 8192)

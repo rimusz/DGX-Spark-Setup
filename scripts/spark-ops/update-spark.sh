@@ -207,5 +207,5 @@ fi
 
 remote_update
 echo ""
-echo "From this machine: curl -sf http://spark:8000/v1/models | head -c 120; echo"
+echo "From this machine (LAN): curl -sf http://spark-local:8000/v1/models | head -c 120; echo"
 echo "  (or: sm status on Spark)"

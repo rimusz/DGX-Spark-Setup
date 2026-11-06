@@ -1,17 +1,15 @@
 #!/bin/bash
-# spark-llms — quick probe of all three Spark model slots
-# Shows which model is serving, with LAN (spark-local) and Tailscale URLs.
+# spark-llms — quick probe of all three Spark model slots (LAN only).
 # Model names match sm / spark-model catalog (e.g. nvidia/Qwen3.6-35B-A3B-NVFP4).
-# Prefer spark-local (/etc/hosts → YOUR_LAN_IP) for LAN clients; avoid mDNS AAAA.
+# Prefer spark-local (/etc/hosts → YOUR_LAN_IP); avoid mDNS AAAA for long-lived clients.
 set -euo pipefail
 
 SPARK_LOCAL="${SPARK_LOCAL:-spark-local}"
-SPARK_TS="${SPARK_TS:-spark}"
+SPARK_LAN_IP="${SPARK_LAN_IP:-}"
 SPARK_MDNS="${SPARK_MDNS:-spark.local}"
 # Optional: also show/probe mDNS (often slow / IPv6-first). Set SPARK_PROBE_MDNS=1
 SPARK_PROBE_MDNS="${SPARK_PROBE_MDNS:-0}"
 
-# Same catalog as spark/bin/spark-model.sh model_id_for
 catalog_model() {
     case "$1" in
         qwen)     echo "nvidia/Qwen3.6-35B-A3B-NVFP4" ;;
@@ -26,7 +24,6 @@ slot_live() {
     curl -sf --connect-timeout 3 "${base%/}/models" >/dev/null 2>&1
 }
 
-# Print served api id when live (best-effort)
 discover_api_model() {
     local base="$1"
     curl -sf --connect-timeout 3 "${base%/}/models" 2>/dev/null \
@@ -51,9 +48,13 @@ engine_for() {
     esac
 }
 
-echo "Spark LLM Slots"
-echo "───────────────"
-echo "Probing: LAN ${SPARK_LOCAL}  |  Tailscale: ${SPARK_TS}"
+echo "Spark LLM Slots (LAN only)"
+echo "──────────────────────────"
+echo -n "Probing: ${SPARK_LOCAL}"
+if [ -n "${SPARK_LAN_IP}" ]; then
+    echo -n "  |  ${SPARK_LAN_IP}"
+fi
+echo
 if [ "$SPARK_PROBE_MDNS" = "1" ]; then
     echo "         (+ mDNS ${SPARK_MDNS})"
 fi
@@ -64,20 +65,23 @@ any_live=false
 probe_one() {
     local slot="$1" port="$2"
     local base_local="http://${SPARK_LOCAL}:${port}/v1"
-    local base_ts="http://${SPARK_TS}:${port}/v1"
+    local base_ip=""
     local base_mdns="http://${SPARK_MDNS}:${port}/v1"
     local catalog engine via api_id=""
 
     catalog="$(catalog_model "$slot")"
     engine="$(engine_for "$slot")"
+    if [ -n "${SPARK_LAN_IP}" ]; then
+        base_ip="http://${SPARK_LAN_IP}:${port}/v1"
+    fi
 
     if slot_live "$base_local"; then
         via="LAN ${SPARK_LOCAL}"
         api_id="$(discover_api_model "$base_local")"
         any_live=true
-    elif slot_live "$base_ts"; then
-        via="Tailscale ${SPARK_TS}"
-        api_id="$(discover_api_model "$base_ts")"
+    elif [ -n "${base_ip}" ] && slot_live "$base_ip"; then
+        via="LAN ${SPARK_LAN_IP}"
+        api_id="$(discover_api_model "$base_ip")"
         any_live=true
     elif [ "$SPARK_PROBE_MDNS" = "1" ] && slot_live "$base_mdns"; then
         via="mDNS ${SPARK_MDNS}"
@@ -95,8 +99,10 @@ probe_one() {
     else
         echo "  ○  ${slot}  :${port}/v1  model=${catalog}  [${engine}]  (not serving)"
     fi
-    echo "     LAN:        ${base_local}   ← LAN clients (after Local Network allowlist if needed)"
-    echo "     Tailscale:  ${base_ts}"
+    echo "     LAN:        ${base_local}"
+    if [ -n "${base_ip}" ]; then
+        echo "     LAN IP:     ${base_ip}"
+    fi
     if [ "$SPARK_PROBE_MDNS" = "1" ]; then
         echo "     mDNS:       ${base_mdns}"
     fi

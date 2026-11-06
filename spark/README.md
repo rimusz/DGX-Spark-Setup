@@ -1,18 +1,19 @@
 # DGX Spark — dedicated LLM inference
 
 **Role:** OpenAI-compatible inference **only**. No agents or orchestration on this host.  
-**Clients:** Mac Mini (`control-host`) and the rest of the tailnet call Spark over LAN / Tailscale.
+**Clients:** LAN hosts only (no Tailscale). Use `spark-local` / `YOUR_LAN_IP`.
 
 | Item | Value |
 |------|--------|
-| Host | `spark` (Tailscale) / `spark-local`→`YOUR_LAN_IP` (Mini hosts) / mDNS `spark.local` |
-| Tailscale | MagicDNS **`spark`**, IP **`YOUR_TAILSCALE_IP`** |
+| Host | `spark-local`→`YOUR_LAN_IP` (client `/etc/hosts`) / optional mDNS `spark.local` |
+| Access | **LAN only** |
 | User | `YOUR_LINUX_USER` |
 | Hardware | NVIDIA DGX Spark (GB10, 128 GB unified, CUDA 13 / driver 580, aarch64) |
 | **Production path** | **Docker** `vllm/vllm-openai:nightly-aarch64` |
-| Models | **Qwen** (vLLM :8000), **DeepSeek-V4-Flash** (ds4 :8001), **Ling-3.0-flash** (SGLang :8002) — **one at a time** |
+| Models | **Qwen** (vLLM :8000), **DeepSeek-V4-Flash** (EXL3 :8001), **Ling-3.0-flash** (SGLang :8002) — **one at a time** |
 | Switcher | `sm` / `spark-model start qwen\|deepseek\|ling` |
-| Dashboard | `http://spark-local:8787` (LAN) / `http://spark:8787` (Tailscale) — `ensure-spark-dashboard.sh` |
+| Stability | GB10 clock cap **300–2200 MHz** (`gb10-clock-cap.service`) |
+| Dashboard | `http://spark-local:8787` (LAN bind) — `ensure-spark-dashboard.sh` |
 
 ---
 
@@ -30,12 +31,17 @@ spark/
 │   ├── download-qwen35-nvfp4.sh    # uses hf download into HF cache
 │   ├── bench-vllm.sh
 │   ├── vllm-qwen35-serve.sh        # native Qwen (secondary)
-│   └── spark-privileged-bootstrap.sh
+│   ├── spark-privileged-bootstrap.sh
+│   ├── apply-gb10-clock-cap.sh     # nvidia-smi -lgc 300,2200 + systemd
+│   ├── revert-gb10-clock-cap.sh
+│   └── spark-boot.sh               # @reboot last sm start
 ├── models/
 │   ├── README.md
 │   ├── deepseek/                   # vendored MiaAI ds4 wrappers
 │   └── ling/                       # vendored MiaAI SGLang wrappers
-├── systemd/vllm-qwen35.service
+├── systemd/
+│   ├── vllm-qwen35.service
+│   └── gb10-clock-cap.service
 └── experimental/
 ```
 
@@ -51,16 +57,14 @@ cd ~/DGX-Spark-Setup
 ./scripts/spark-ops/setup-spark.sh
 source ~/.bashrc
 
-# Once (root): apt, Tailscale, docker group
+# Once (root): apt, docker, GB10 2200 MHz clock cap (LAN-only; no Tailscale)
 sudo ~/bin/spark-privileged-bootstrap.sh
-sudo tailscale up --accept-dns=false --hostname=spark
-sudo tailscale set --operator="$USER"
 newgrp docker   # or re-login
 
 # Prefetch + serve via exclusive switcher (recommended)
 # setup-spark.sh also installs Hugging Face `hf` → ~/.local/bin (login PATH)
 sm pull qwen         # Docker image + HF weights via `hf download` (no start)
-sm start qwen        # → http://spark:8000/v1
+sm start qwen        # → http://spark-local:8000/v1 (from LAN clients)
 sm status
 hf --version         # model Hub CLI (not a server)
 ```
@@ -87,10 +91,10 @@ sm pull ling         # SGLang image + INT4 weights
 sm pull all          # all three
 
 # DeepSeek-V4-Flash (EXL3 / SparkInfer default; GGUF backup: sm start deepseek-ds4)
-sm start deepseek    # → http://spark:8001/v1
+sm start deepseek    # → http://spark-local:8001/v1
 
 # Ling-3.0-flash-int4 (SGLang Docker)
-sm start ling        # → http://spark:8002/v1
+sm start ling        # → http://spark-local:8002/v1
 
 sm stop              # free unified memory
 ```
@@ -98,6 +102,22 @@ sm stop              # free unified memory
 **Important:** Only **one** of Qwen / DeepSeek / Ling should run. Each wants most of 128 GB unified memory.
 
 ### Boot / power-loss: what auto-starts?
+
+### GB10 clock cap (hard power-off mitigation)
+
+Sustained load can trigger a **log-less hard power cut**. Cap graphics clocks at **2200 MHz**:
+
+```bash
+sudo apply-gb10-clock-cap.sh          # now + enable gb10-clock-cap.service
+# or: sudo nvidia-smi -lgc 300,2200
+systemctl status gb10-clock-cap
+nvidia-smi -q -d CLOCK | head -40
+```
+
+Revert: `sudo revert-gb10-clock-cap.sh`. Community prior art: [DGX-Spark-Hard-Poweroff-Fix](https://github.com/tonyd2wild/DGX-Spark-Hard-Poweroff-Fix).
+
+Also set firmware **Restore AC Power Loss → Power On** so the machine returns after outages; then Docker + clock-cap + `spark-boot.sh` bring inference back.
+
 
 Production Qwen is a **Docker** container (`vllm-qwen35`) created with **`--restart unless-stopped`**. Docker itself is **enabled** on boot. The native systemd unit `vllm-qwen35.service` stays **disabled** (Docker path only).
 
@@ -119,41 +139,36 @@ sm status
 docker ps --filter name=vllm
 curl -sf http://127.0.0.1:8000/v1/models
 
-# From Mini / MacBook (wait a few minutes for weights to load)
-curl -sf http://spark:8000/v1/models
-curl -sf http://spark.local:8000/v1/models
+# From Mini / MacBook on LAN (wait a few minutes for weights to load)
+curl -sf http://spark-local:8000/v1/models
+curl -sf http://YOUR_LAN_IP:8000/v1/models
 ```
 
 If Qwen is down after boot: `sm start qwen` (or `vo start` / recreate via `vllm-qwen35-docker.sh`).  
 Inspect policy: `docker inspect vllm-qwen35 --format '{{.HostConfig.RestartPolicy.Name}}'` → expect `unless-stopped`.
 
-### Client URLs (LAN vs Tailscale)
+### Client URLs (LAN only)
 
 OpenAI **base URL** is always `http://<host>:<port>/v1` (clients append `/models`, `/chat/completions`).  
 Bare `http://…/v1` with no further path often returns `{"detail":"Not Found"}` — that is normal; probe with `/v1/models`.
 
 | Client situation | Prefer base URL (Qwen example) | Notes |
 |------------------|--------------------------------|--------|
-| **LAN clients (spark-local)** | **`http://spark-local:8000/v1`** | `/etc/hosts` → `YOUR_LAN_IP`; needs Local Network → **node** |
-| Away / no LAN | `http://spark:8000/v1` | Tailscale MagicDNS |
+| **LAN clients (spark-local)** | **`http://spark-local:8000/v1`** | `/etc/hosts` → `YOUR_LAN_IP`; needs Local Network → **node** on macOS |
+| LAN IP | `http://YOUR_LAN_IP:8000/v1` | Direct; no hosts entry required |
 | curl / browsers | `http://spark.local:8000/v1` | Happy Eyeballs; **not for long-lived clients** |
 
 Same hosts for other models: DeepSeek port **8001**, Ling **8002**.
 
+**This setup does not use Tailscale.** Keep Spark and clients on the same LAN.
+
 **Client caveats**
-1. **Local Network:** if Test Connection gets `EHOSTUNREACH` to `spark-local` / `192.168.1.x`, enable System Settings → Privacy & Security → Local Network → **node**, then retry (or use `http://spark:800N/v1`).
+1. **Local Network:** if Test Connection gets `EHOSTUNREACH` to `spark-local` / `192.168.1.x`, enable System Settings → Privacy & Security → Local Network → **node**, then retry (or use `http://YOUR_LAN_IP:800N/v1`).
 2. **mDNS:** do not use `spark.local` in long-lived clients (IPv6 first + IPv4-only binds).
 
 #### Latency
 
-- On the **same switch**, Tailscale usually uses a **direct** WireGuard path and adds roughly **~0.2–1 ms** vs plain LAN — usually noise next to model decode time.
-- If the peer falls back to a **DERP relay**, latency can jump by **tens of ms** — worse for TTFT. Prefer LAN for clients when the control host and Spark are on the same LAN.
-- Decode (ms/token) dominates; URL choice rarely changes tok/s.
-
-```bash
-# On Mini — prefer "direct", not "via DERP"
-tailscale ping spark
-```
+Prefer same-switch LAN. Decode (ms/token) dominates; URL choice rarely changes tok/s.
 
 #### LAN clients on Mac Mini (recommended)
 
@@ -163,7 +178,7 @@ API key:   leave empty or any placeholder if UI requires one
 Model id:  curl -s http://spark-local:8001/v1/models | jq -r '.data[].id'
 ```
 
-Hosts entry: `add-spark-local-hosts.sh` / `setup-mini.sh`. Helper: `./scripts/providers/setup-client-providers.sh`. Off-LAN: `http://spark:800N/v1`.
+Hosts entry: `add-spark-local-hosts.sh`. This host is LAN-only — no off-LAN URL.
 
 Ollama on Mini is **optional / stopped by default** — prefer Spark as the primary local LLM provider.
 
@@ -173,19 +188,15 @@ Ollama on Mini is **optional / stopped by default** — prefer Spark as the prim
 # On Spark
 curl -s http://127.0.0.1:8000/v1/models | jq .
 
-# From Mac Mini (prefer LAN when co-located)
-curl -s http://spark.local:8000/v1/models | jq .
+# From Mac Mini / laptop on LAN
+curl -s http://spark-local:8000/v1/models | jq .
 curl -s http://YOUR_LAN_IP:8000/v1/models | jq .
-
-# Tailscale (any tailnet device)
-curl -s http://spark:8000/v1/models | jq .
-curl -s http://YOUR_TAILSCALE_IP:8000/v1/models | jq .
 ```
 
 Chat (use enough `max_tokens` — model emits **reasoning** first):
 
 ```bash
-curl -s http://spark.local:8000/v1/chat/completions \
+curl -s http://spark-local:8000/v1/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{
     "model": "qwen36-35b-a3b-nvfp4",
@@ -266,7 +277,6 @@ If you later switch to **27B dense + DFlash**, clone MiaAI’s `start.sh` / `cha
 6. **Sudoless Docker:** `usermod -aG docker $USER` + re-login; `~/bin` on PATH via `.bashrc`.
 7. **Reasoning models:** short `max_tokens` fills **reasoning** only; use ≥256 for final `content`.
 8. **Keep Spark lean:** desktop apps (Firefox/GNOME) waste unified memory; inference-only is ideal.
-9. **Tailscale key expiry** on other hosts (e.g. poly) is unrelated but blocks remote MCP — renew before blaming the API.
 
 ---
 
@@ -300,8 +310,8 @@ INPUT_LENS=2048,8192,16384 OUTPUT_LEN=256 bench-vllm.sh
 # Concurrency decode table (like MiaAI ×1–×4)
 MODE=decode CONCURRENCY=1,2,4 OUTPUT_LEN=256 bench-vllm.sh
 
-# From MacBook over Tailscale
-BASE_URL=http://spark:8000/v1 bench-vllm.sh
+# From MacBook on LAN
+BASE_URL=http://spark-local:8000/v1 bench-vllm.sh
 
 # Allow reasoning tokens (inflates completion count / changes latency)
 THINKING=1 bench-vllm.sh

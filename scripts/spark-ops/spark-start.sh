@@ -13,7 +13,8 @@ set -euo pipefail
 SPARK_SSH="${SPARK_SSH:-${SPARK_HOST:-user@spark}}"
 READY_TIMEOUT_S="${READY_TIMEOUT_S:-900}"
 SPARK_LOCAL="${SPARK_LOCAL:-spark-local}"
-SPARK_TS="${SPARK_TS:-spark}"
+SPARK_LAN_IP="${SPARK_LAN_IP:-}"
+
 
 usage() {
   cat <<EOF
@@ -60,15 +61,15 @@ probe_url() {
   curl -sf --connect-timeout 3 "${base%/}/models" >/dev/null 2>&1
 }
 
-# Prefer LAN spark-local, then Tailscale
+# Prefer LAN spark-local, then SPARK_LAN_IP
 best_base_for_port() {
   local p="$1"
   if probe_url "http://${SPARK_LOCAL}:${p}/v1"; then
     echo "http://${SPARK_LOCAL}:${p}/v1"
     return 0
   fi
-  if probe_url "http://${SPARK_TS}:${p}/v1"; then
-    echo "http://${SPARK_TS}:${p}/v1"
+  if [ -n "${SPARK_LAN_IP}" ] && probe_url "http://${SPARK_LAN_IP}:${p}/v1"; then
+    echo "http://${SPARK_LAN_IP}:${p}/v1"
     return 0
   fi
   return 1
@@ -76,9 +77,9 @@ best_base_for_port() {
 
 via_for_host() {
   case "$1" in
-    spark-local|192.*) echo "LAN" ;;
-    spark|*.ts.net|100.*) echo "Tailscale" ;;
-    *) echo "LAN/mDNS" ;;
+    spark-local|192.*|10.*|172.*) echo "LAN" ;;
+    *.local) echo "mDNS" ;;
+    *) echo "LAN" ;;
   esac
 }
 
@@ -158,7 +159,7 @@ print_status() {
     echo "  ✅ Reachable on ${host_part}:${port} (via ${via}, ${live_label}, model=${live_catalog})"
   else
     echo "  ❌ Not reachable on :${port} yet (started ${model}; still loading?)"
-    echo "     Check: ssh ${SPARK_SSH} 'sm status' ; curl -sf http://${SPARK_TS}:${port}/v1/models"
+    echo "     Check: ssh ${SPARK_SSH} 'sm status' ; curl -sf http://${SPARK_LOCAL}:${port}/v1/models"
   fi
   print_system || true
 }

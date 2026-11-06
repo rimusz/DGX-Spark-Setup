@@ -9,7 +9,7 @@
 #   sm pull qwen|deepseek|ling|deepseek-ds4|all
 #   sm download …                      # alias of pull
 #
-# Ports (OpenAI base = http://spark:<port>/v1):
+# Ports (OpenAI base = http://spark-local:<port>/v1 on LAN):
 #   qwen         → 8000  (vLLM Docker)     model id: qwen36-35b-a3b-nvfp4 / HF id
 #   deepseek     → 8001  (EXL3 / SparkInfer)  DeepSeek-V4-Flash-0731
 #   deepseek-ds4 → 8001  (ds4-server GGUF)    backup of the same 0731 family
@@ -339,9 +339,9 @@ do_status() {
   status_one ling
   echo
   echo "URLs:"
-  echo "  Qwen     → http://spark:8000/v1"
-  echo "  DeepSeek → http://spark:8001/v1"
-  echo "  Ling     → http://spark:8002/v1"
+  echo "  Qwen     → http://spark-local:8000/v1"
+  echo "  DeepSeek → http://spark-local:8001/v1"
+  echo "  Ling     → http://spark-local:8002/v1"
   echo
   echo "Commands:"
   echo "  sm start qwen"
@@ -633,7 +633,7 @@ pull_deepseek_exl3() {
   echo "Weights + coalesce via ${EXL3_DIR}/download.sh (~107 GiB). Does not start serve."
   echo "GGUF backup pull: sm pull deepseek-ds4"
   (cd "${EXL3_DIR}" && ./download.sh)
-  echo "Start: sm start deepseek  →  http://spark:8001/v1"
+  echo "Start: sm start deepseek  →  http://spark-local:8001/v1"
 }
 
 pull_deepseek_ds4() {

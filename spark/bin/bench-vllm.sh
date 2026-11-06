@@ -6,7 +6,7 @@
 #
 # Usage (on Spark or any client that can reach the API):
 #   bench-vllm.sh
-#   BASE_URL=http://spark:8000/v1 OUTPUT_LEN=256 CONCURRENCY=1 bench-vllm.sh
+#   BASE_URL=http://spark-local:8000/v1 OUTPUT_LEN=256 CONCURRENCY=1 bench-vllm.sh
 #   INPUT_LENS="2048,8192,16384" THINKING=0 bench-vllm.sh
 #   MODE=decode CONCURRENCY=1,2,4 OUTPUT_LEN=256 bench-vllm.sh
 #

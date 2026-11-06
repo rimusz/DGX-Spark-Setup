@@ -1,0 +1,16 @@
+[Unit]
+Description=GB10 GPU clock cap (DGX Spark hard power-off mitigation)
+# Caps graphics clocks at 2200 MHz so the EC thermal cut has headroom.
+# Community prior art: https://github.com/tonyd2wild/DGX-Spark-Hard-Poweroff-Fix
+After=nvidia-persistenced.service multi-user.target
+Wants=nvidia-persistenced.service
+
+[Service]
+Type=oneshot
+# min 300 MHz, max 2200 MHz — lower the ceiling if hard-offs persist
+ExecStart=/usr/bin/nvidia-smi -lgc 300,2200
+RemainAfterExit=yes
+ExecStop=/usr/bin/nvidia-smi -rgc
+
+[Install]
+WantedBy=multi-user.target

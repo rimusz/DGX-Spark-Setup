@@ -6,7 +6,8 @@
 #   SPARK_LAN_IP=YOUR_LAN_IP SPARK_LOCAL_NAME=spark-local ./add-spark-local-hosts.sh
 #
 # Note: Clients under launchd still need Privacy → Local Network → node to use
-# http://spark-local:800N/v1; until then prefer http://spark:800N/v1 (Tailscale).
+# http://spark-local:800N/v1; until then use http://YOUR_LAN_IP:800N/v1.
+
 set -euo pipefail
 
 SPARK_LAN_IP="${SPARK_LAN_IP:?set SPARK_LAN_IP to your Spark LAN IPv4}"

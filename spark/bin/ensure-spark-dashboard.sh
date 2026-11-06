@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Install or refresh DGX Spark Dashboard (singhangadin) on this host.
 # Official installer: checksummed release bundle + GHCR ARM64 image.
-# Bind loopback + LAN + Tailscale only (not 0.0.0.0). Health: :8787/api/health
+# Bind loopback + LAN only (not 0.0.0.0; no Tailscale). Health: :8787/api/health
 #
 # Usage (on Spark):
 #   ensure-spark-dashboard.sh           # install if missing / recreate if bind changed
@@ -28,24 +28,16 @@ dash_lan_ip() {
     | awk '{ for (i = 1; i <= NF; i++) if ($i == "src") { print $(i + 1); exit } }'
 }
 
-dash_ts_ip() {
-  tailscale ip -4 2>/dev/null | head -1 || true
-}
-
 ensure_bind() {
   local env_file="${INSTALL_DIR}/.env"
-  local lan ts bind cur
+  local lan bind cur
   if [ ! -f "${env_file}" ]; then
     return 1
   fi
   lan="$(dash_lan_ip || true)"
-  ts="$(dash_ts_ip || true)"
   bind="127.0.0.1"
   if [ -n "${lan}" ] && [ "${lan}" != "127.0.0.1" ]; then
     bind="${bind},${lan}"
-  fi
-  if [ -n "${ts}" ]; then
-    bind="${bind},${ts}"
   fi
   cur="$(sed -n 's/^DASHBOARD_BIND_ADDRESS=//p' "${env_file}" | tail -n 1)"
   if [ "${cur}" = "${bind}" ]; then
@@ -88,7 +80,7 @@ else
 fi
 
 if dashboard_healthy; then
-  echo "✅ DGX Spark Dashboard http://127.0.0.1:${PORT}  (LAN/Tailscale :${PORT})"
+  echo "✅ DGX Spark Dashboard http://127.0.0.1:${PORT}  (LAN bind :${PORT})"
 else
   echo "⚠️  Dashboard started but /api/health not ready yet — check: (cd ${INSTALL_DIR} && docker compose ps)" >&2
   exit 1
