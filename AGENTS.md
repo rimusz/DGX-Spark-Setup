@@ -8,7 +8,9 @@ Spark is **LLM inference only**, **LAN-only** access. Run **one** model at a tim
 - **Qwen** on **:8000** — data analysis default (`sm start qwen`, 6 seqs / 131k, tools)
 - **DeepSeek** on **:8001** — EXL3 (`sm start deepseek`, 8 seqs / 256k / K5)
 - Backup: `sm start deepseek-ds4` (ds4 GGUF)
+- **Colibri** on **:8003** — opt-in (`sm pull colibri && sm start colibri`, qwen36-35b CUDA)
 - DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark)
+- Colibri: [JustVugg/colibri](https://github.com/JustVugg/colibri)
 - **No Tailscale**, **no Ling** (not in this public tree)
 
 ## Install
@@ -20,6 +22,7 @@ bash scripts/spark-ops/setup-spark.sh
 sudo ~/bin/spark-privileged-bootstrap.sh
 sm pull qwen && sm start qwen          # data analysis
 # or: sm pull deepseek && sm start deepseek
+# or: sm pull colibri && sm start colibri   # :8003 opt-in
 ```
 
 ## Stability
