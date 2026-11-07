@@ -28,7 +28,7 @@ sudo spark-headless on && sudo reboot  # optional: no GUI
 ensure-spark-dashboard.sh --upgrade
 ```
 
-Recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark).
+DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark).
 
 Qwen full 262k: `VLLM_MAX_MODEL_LEN=262144 VLLM_MAX_NUM_SEQS=4 sm start qwen`
 
@@ -56,4 +56,4 @@ Optional: `sudo spark-headless on` (no GUI, more unified RAM).
 ## Safety
 
 - One model at a time on this host.
-- Do not paste HE tokens into chat.
+- Do not paste HF tokens into chat.
