@@ -1,10 +1,16 @@
 # DGX Spark Setup
 
-Public tooling to run **DeepSeek V4 Flash** (OpenAI-compatible) on one **NVIDIA DGX Spark** (GB10).
+Public tooling to run **OpenAI-compatible LLMs** on one **NVIDIA DGX Spark** (GB10).
 
-**Model:** DeepSeek only — EXL3 / SparkInfer on **`:8001`** (optional GGUF backup `deepseek-ds4`).
+**Models (exclusive — one at a time):**
 
-→ [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark)
+| Key | Port | Engine | Default profile | Best for |
+|-----|------|--------|-----------------|----------|
+| **`qwen`** | **`:8000`** | vLLM Docker | **6 seqs / 131k** | **Data analysis** (tools + reasoning) |
+| **`deepseek`** | **`:8001`** | EXL3 / SparkInfer | 8 seqs / 256k / K5 | Long-context reasoning |
+| `deepseek-ds4` | `:8001` | ds4 GGUF backup | — | Fallback for DeepSeek |
+
+DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark)
 
 **Access:** **LAN only** (no Tailscale) via `spark-local` / LAN IP.
 
@@ -15,7 +21,7 @@ Public tooling to run **DeepSeek V4 Flash** (OpenAI-compatible) on one **NVIDIA 
 ## Layout
 
 ```text
-spark/                 # sm, boot, clock-cap, DeepSeek wrappers
+spark/                 # sm, boot, clock-cap, Qwen vLLM + DeepSeek wrappers
 scripts/spark-ops/     # setup / update / LAN probe
 docs/                  # runbook + skill card
 .cursor|claude|agents|codex/skills/spark-inference/
@@ -33,8 +39,14 @@ bash scripts/spark-ops/setup-spark.sh
 sudo ~/bin/spark-privileged-bootstrap.sh
 newgrp docker
 
+# Data analysis (recommended default for tools / multi-stream work)
+sm pull qwen
+sm start qwen          # → http://spark-local:8000/v1  (6 concurrent / 131k)
+
+# Or DeepSeek for deep long-context reasoning
 sm pull deepseek
-sm start deepseek
+sm start deepseek      # → http://spark-local:8001/v1
+
 sm status
 
 # optional: disable GUI for more unified RAM
@@ -48,14 +60,31 @@ export SPARK_HOST=user@YOUR_LAN_IP
 export SPARK_LAN_IP=192.168.x.x
 ./scripts/spark-ops/add-spark-local-hosts.sh
 ./scripts/spark-ops/update-spark.sh
-curl -sf http://spark-local:8001/v1/models
+curl -sf http://spark-local:8000/v1/models   # qwen
+curl -sf http://spark-local:8001/v1/models   # deepseek
 ```
 
 ---
 
-## Client URL
+## Which model?
 
-`http://spark-local:8001/v1` or `http://YOUR_LAN_IP:8001/v1`
+- **Data analysis / agents with tools / up to 6 parallel streams** → `sm start qwen`
+- **Heavier long-context reasoning (256k, 8 streams)** → `sm start deepseek`
+
+Qwen full 262k context (fewer streams):
+
+```bash
+VLLM_MAX_MODEL_LEN=262144 VLLM_MAX_NUM_SEQS=4 sm start qwen
+```
+
+---
+
+## Client URLs
+
+| Model | Base URL |
+|-------|----------|
+| Qwen | `http://spark-local:8000/v1` or `http://YOUR_LAN_IP:8000/v1` |
+| DeepSeek | `http://spark-local:8001/v1` or `http://YOUR_LAN_IP:8001/v1` |
 
 Optional dashboard: `:8787` (loopback + LAN).
 
