@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# After reboot, start DeepSeek if last `sm start` armed it.
-# File: ~/.config/spark-models/autostart  (deepseek|deepseek-ds4)
+# After reboot, start last armed model from `sm start`.
+# File: ~/.config/spark-models/autostart  (qwen|deepseek|deepseek-ds4)
 # Legacy: ~/.config/ds4/autostart → deepseek (EXL3 default)
 # Cron: @reboot sleep 30 && ~/bin/spark-boot.sh
 set -euo pipefail
@@ -20,7 +20,7 @@ elif [ -f "${LEGACY}" ]; then
 fi
 
 case "${model}" in
-  deepseek|deepseek-ds4) ;;
+  qwen|deepseek|deepseek-ds4) ;;
   *) exit 0 ;;
 esac
 
@@ -28,6 +28,32 @@ echo "[$(date)] spark-boot: last model=${model}" >> "${LOG}"
 
 url_ok() {
   curl -sf --connect-timeout 2 "http://127.0.0.1:${1}/v1/models" >/dev/null 2>&1
+}
+
+boot_qwen() {
+  local port="${PORT:-8000}"
+  if url_ok "${port}"; then
+    exit 0
+  fi
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx 'vllm-qwen35'; then
+    exit 0
+  fi
+  local wrapper="${HOME}/bin/vllm-qwen35-docker.sh"
+  if [ ! -x "${wrapper}" ]; then
+    wrapper="${HOME}/DGX-Spark-Setup/spark/bin/vllm-qwen35-docker.sh"
+  fi
+  if [ ! -x "${wrapper}" ]; then
+    echo "[$(date)] spark-boot: vllm-qwen35-docker.sh missing" >> "${LOG}"
+    exit 1
+  fi
+  echo "[$(date)] spark-boot: starting Qwen :${port} seqs=${VLLM_MAX_NUM_SEQS:-6} len=${VLLM_MAX_MODEL_LEN:-131072}" >> "${LOG}"
+  PORT="${port}" \
+    VLLM_MAX_NUM_SEQS="${VLLM_MAX_NUM_SEQS:-6}" \
+    VLLM_MAX_MODEL_LEN="${VLLM_MAX_MODEL_LEN:-131072}" \
+    bash "${wrapper}" >> "${LOG}" 2>&1 || {
+      echo "[$(date)] spark-boot: Qwen start failed" >> "${LOG}"
+      exit 1
+    }
 }
 
 boot_deepseek() {
@@ -96,6 +122,7 @@ boot_deepseek_ds4() {
 }
 
 case "${model}" in
+  qwen) boot_qwen ;;
   deepseek) boot_deepseek ;;
   deepseek-ds4) boot_deepseek_ds4 ;;
 esac
