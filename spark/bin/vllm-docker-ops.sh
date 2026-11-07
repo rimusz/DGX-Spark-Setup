@@ -21,8 +21,9 @@ case "${cmd}" in
     echo "  sm status"
     echo "  sm start qwen          # data analysis :8000 (6 seqs / 131k)"
     echo "  sm start deepseek      # DeepSeek EXL3 :8001"
+    echo "  sm start colibri       # Colibri CUDA :8003 (opt-in)"
     echo "  sm stop"
-    echo "  sm pull qwen|deepseek|all"
+    echo "  sm pull qwen|deepseek|colibri|all"
     echo
     docker ps --filter "name=${NAME}" --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
     echo "---"
