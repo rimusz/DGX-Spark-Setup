@@ -1,6 +1,6 @@
-# DGX Spark — DeepSeek inference
+# DGX Spark — Qwen + DeepSeek inference
 
-**Role:** OpenAI-compatible **DeepSeek V4 Flash** only. No agents, no Qwen/Ling.  
+**Role:** OpenAI-compatible inference on GB10. **One model at a time.** No agents.  
 **Clients:** LAN only (`spark-local` / `YOUR_LAN_IP`). No Tailscale.
 
 | Item | Value |
@@ -9,13 +9,14 @@
 | Access | **LAN only** |
 | User | `YOUR_LINUX_USER` |
 | Hardware | NVIDIA DGX Spark (GB10, 128 GB unified, aarch64) |
-| Model | **DeepSeek-V4-Flash** EXL3 / SparkInfer on **:8001** |
-| Backup | `sm start deepseek-ds4` (ds4 GGUF, same port) |
+| **Qwen** | **`:8000`** vLLM — data analysis default **6 seqs / 131k** |
+| **DeepSeek** | **`:8001`** EXL3 / SparkInfer — **8 seqs / 256k / K5** |
+| Backup | `sm start deepseek-ds4` (ds4 GGUF, same port as DeepSeek) |
 | Switcher | `sm` / `spark-model` |
 | Stability | GB10 clock cap **300–2200 MHz** (`gb10-clock-cap.service`) |
 | Dashboard | `http://spark-local:8787` |
 
-Recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark) (`sm pull deepseek` → `~/code/dsv4-exl3`).
+DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark) (`sm pull deepseek` → `~/code/dsv4-exl3`).
 
 ---
 
@@ -25,7 +26,10 @@ Recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepS
 spark/
 ├── README.md
 ├── bin/
-│   ├── spark-model.sh              # sm — DeepSeek start/stop/pull
+│   ├── spark-model.sh              # sm — start/stop/pull (qwen|deepseek)
+│   ├── vllm-qwen35-docker.sh       # Qwen vLLM Docker (6/131k data-analysis default)
+│   ├── vllm-docker-ops.sh          # vo — Qwen container helpers
+│   ├── download-qwen35-nvfp4.sh
 │   ├── spark-boot.sh               # @reboot last sm start
 │   ├── apply-gb10-clock-cap.sh     # nvidia-smi -lgc 300,2200 + systemd
 │   ├── revert-gb10-clock-cap.sh
@@ -49,30 +53,48 @@ source ~/.bashrc
 sudo ~/bin/spark-privileged-bootstrap.sh
 newgrp docker
 
+# Data analysis (tools + up to 6 concurrent streams)
+sm pull qwen
+sm start qwen        # → http://spark-local:8000/v1
+
+# Or DeepSeek long-context
 sm pull deepseek
 sm start deepseek    # → http://spark-local:8001/v1
+
 sm status
 ```
 
 Optional GGUF backup: `sm pull deepseek-ds4` then `sm start deepseek-ds4`.
 
-Default EXL3 profile: **8 seqs / 256k / K5** (`MAX_NUM_SEQS=8`, `MAX_MODEL_LEN=256000`, `DSPARK_TOKENS=5`).
+### Profiles
+
+| Model | Default | Notes |
+|-------|---------|--------|
+| **Qwen** | `VLLM_MAX_NUM_SEQS=6`, `VLLM_MAX_MODEL_LEN=131072` | Tool calling (`qwen3_xml`) + reasoning; best for **data analysis** |
+| DeepSeek | `MAX_NUM_SEQS=8`, `MAX_MODEL_LEN=256000`, `DSPARK_TOKENS=5` | Heavier EXL3; deeper long-context |
+
+Qwen full context (fewer streams):
+
+```bash
+VLLM_MAX_MODEL_LEN=262144 VLLM_MAX_NUM_SEQS=4 sm start qwen
+```
 
 ---
 
 ## Boot / power-loss
 
-After AC returns, the **machine** must power on by itself; then OS boot helpers bring DeepSeek back:
+After AC returns, the **machine** must power on by itself; then OS boot helpers bring the last model back:
 
 1. Firmware **After Power Loss → Auto Boot** (aka Restore AC Power Loss → Power On) — see below.
 2. `gb10-clock-cap.service` reapplies `nvidia-smi -lgc 300,2200` every boot.
-3. Last `sm start deepseek|deepseek-ds4` arms crontab `@reboot` → `spark-boot.sh` (`sm stop` clears it).
+3. Last `sm start qwen|deepseek|deepseek-ds4` arms crontab `@reboot` → `spark-boot.sh` (`sm stop` clears it).
 
 ```bash
 sudo apply-gb10-clock-cap.sh
 systemctl status gb10-clock-cap
 sm status
-curl -sf http://127.0.0.1:8001/v1/models
+curl -sf http://127.0.0.1:8000/v1/models   # if last start was qwen
+curl -sf http://127.0.0.1:8001/v1/models   # if last start was deepseek
 ```
 
 Community prior art for the clock cap: [DGX-Spark-Hard-Poweroff-Fix](https://github.com/tonyd2wild/DGX-Spark-Hard-Poweroff-Fix).
@@ -129,13 +151,24 @@ Do **not** `apt purge ubuntu-desktop` — that can remove Spark platform package
 
 ## Client URLs (LAN)
 
-| From | Base URL |
-|------|----------|
-| On Spark | `http://127.0.0.1:8001/v1` |
-| LAN hosts | `http://spark-local:8001/v1` |
-| LAN IP | `http://YOUR_LAN_IP:8001/v1` |
+| Model | On Spark | LAN hosts | LAN IP |
+|-------|----------|-----------|--------|
+| Qwen | `http://127.0.0.1:8000/v1` | `http://spark-local:8000/v1` | `http://YOUR_LAN_IP:8000/v1` |
+| DeepSeek | `http://127.0.0.1:8001/v1` | `http://spark-local:8001/v1` | `http://YOUR_LAN_IP:8001/v1` |
 
 ```bash
+# Qwen
+curl -s http://spark-local:8000/v1/models | jq .
+curl -s http://spark-local:8000/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "model": "qwen36-35b-a3b-nvfp4",
+    "messages": [{"role":"user","content":"Say only: SPARK-OK"}],
+    "max_tokens": 256,
+    "temperature": 0
+  }' | jq .
+
+# DeepSeek
 curl -s http://spark-local:8001/v1/models | jq .
 curl -s http://spark-local:8001/v1/chat/completions \
   -H 'Content-Type: application/json' \
@@ -163,5 +196,6 @@ On macOS, allow Local Network for the client process, or use the raw LAN IP.
 export SPARK_HOST=user@YOUR_LAN_IP
 export SPARK_LAN_IP=YOUR_LAN_IP
 ./scripts/spark-ops/update-spark.sh
+./scripts/spark-ops/update-spark.sh --images qwen
 ./scripts/spark-ops/update-spark.sh --images deepseek
 ```

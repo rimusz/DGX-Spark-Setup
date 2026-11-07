@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# DeepSeek-only switcher for DGX Spark (LAN inference).
+# Exclusive multi-model switcher for DGX Spark (LAN inference).
+# One heavy server at a time (shared ~128 GB unified memory).
 #
 #   sm status
 #   sm stop
-#   sm start deepseek|deepseek-ds4
-#   sm pull deepseek|deepseek-ds4
+#   sm start qwen|deepseek|deepseek-ds4
+#   sm pull qwen|deepseek|deepseek-ds4|all
 #
-# Port (OpenAI base = http://spark-local:8001/v1 on LAN):
+# Ports (OpenAI base = http://spark-local:<port>/v1 on LAN):
+#   qwen           → 8000  vLLM Docker  Qwen3.6-35B-A3B-NVFP4 (data analysis: 6/131k)
 #   deepseek       → 8001  EXL3 / SparkInfer  DeepSeek-V4-Flash-0731
 #   deepseek-ds4   → 8001  ds4-server GGUF backup
 #
-# Recipe: rimusz/DeepSeek-v4-Flash-One-DGX-Spark
-# Backup: Entrpi/ds4-on-spark (GGUF in ~/gguf)
+# Recipes:
+#   Qwen:     this repo (vllm-qwen35-docker.sh)
+#   DeepSeek: rimusz/DeepSeek-v4-Flash-One-DGX-Spark
+#   Backup:   Entrpi/ds4-on-spark (GGUF in ~/gguf)
 set -euo pipefail
 
 export PATH="${HOME}/bin:${HOME}/.local/bin:${PATH}"
@@ -67,8 +71,17 @@ url_ok() {
   curl -sf --connect-timeout 2 "http://127.0.0.1:${1}/v1/models" >/dev/null 2>&1
 }
 
+port_for() {
+  case "$1" in
+    qwen) echo 8000 ;;
+    deepseek|deepseek-ds4) echo 8001 ;;
+    *) return 1 ;;
+  esac
+}
+
 model_id_for() {
   case "$1" in
+    qwen) echo "qwen36-35b-a3b-nvfp4 (data analysis 6/131k)" ;;
     deepseek) echo "DeepSeek-V4-Flash (EXL3 0731)" ;;
     deepseek-ds4) echo "DeepSeek-V4-Flash (ds4 GGUF backup)" ;;
     *) echo "?" ;;
@@ -77,6 +90,7 @@ model_id_for() {
 
 engine_for() {
   case "$1" in
+    qwen) echo "vLLM Docker" ;;
     deepseek)
       if pgrep -x ds4-server >/dev/null 2>&1; then
         echo "ds4-server (backup)"
@@ -87,6 +101,15 @@ engine_for() {
     deepseek-ds4) echo "ds4-server (backup)" ;;
     *) echo "?" ;;
   esac
+}
+
+stop_qwen() {
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx 'vllm-qwen35'; then
+    echo "Stopping Qwen (vllm-qwen35)..."
+    docker rm -f vllm-qwen35 >/dev/null 2>&1 || true
+  elif docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx 'vllm-qwen35'; then
+    docker rm -f vllm-qwen35 >/dev/null 2>&1 || true
+  fi
 }
 
 stop_exl3() {
@@ -114,8 +137,12 @@ stop_deepseek() {
 
 stop_all() {
   disarm_autostart
+  stop_qwen
   stop_deepseek
-  echo "DeepSeek servers stopped (best-effort)."
+  if systemctl is-active --quiet vllm-qwen35 2>/dev/null; then
+    echo "Note: native vllm-qwen35 unit active — sudo systemctl stop vllm-qwen35"
+  fi
+  echo "Spark model servers stopped (best-effort)."
 }
 
 print_mem() {
@@ -139,24 +166,25 @@ print_mem() {
 }
 
 status_one() {
-  local name="$1" catalog live
+  local name="$1" port catalog live
+  port="$(port_for "$name")"
   catalog="$(model_id_for "$name")"
-  if url_ok 8001; then
-    live="$(curl -sf --connect-timeout 2 "http://127.0.0.1:8001/v1/models" \
+  if url_ok "${port}"; then
+    live="$(curl -sf --connect-timeout 2 "http://127.0.0.1:${port}/v1/models" \
       | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("data",[{}])[0].get("id","") or "")' 2>/dev/null || true)"
     if [ -n "${live}" ] && [ "${live}" != "${catalog}" ]; then
-      echo "  ✅ ${name}  :8001/v1  model=${catalog}  api=${live}  [$(engine_for "$name")]"
+      echo "  ✅ ${name}  :${port}/v1  model=${catalog}  api=${live}  [$(engine_for "$name")]"
     else
-      echo "  ✅ ${name}  :8001/v1  model=${catalog}  [$(engine_for "$name")]"
+      echo "  ✅ ${name}  :${port}/v1  model=${catalog}  [$(engine_for "$name")]"
     fi
   else
-    echo "  ○  ${name}  :8001/v1  model=${catalog}  [$(engine_for "$name")]  (not serving)"
+    echo "  ○  ${name}  :${port}/v1  model=${catalog}  [$(engine_for "$name")]  (not serving)"
   fi
 }
 
 do_status() {
   echo "========================================"
-  echo "Spark DeepSeek (LAN :8001)"
+  echo "Spark models (LAN — one at a time)"
   echo "========================================"
   echo
   print_mem
@@ -182,14 +210,15 @@ do_status() {
     echo "Reboot autostart: off"
   fi
   echo
+  status_one qwen
   if pgrep -x ds4-server >/dev/null 2>&1; then
     status_one deepseek-ds4
   else
     status_one deepseek
   fi
   echo
-  echo "URL: http://spark-local:8001/v1"
-  echo "Commands: sm start deepseek | sm start deepseek-ds4 | sm pull deepseek | sm stop"
+  echo "URLs: http://spark-local:8000/v1 (qwen)  |  http://spark-local:8001/v1 (deepseek)"
+  echo "Commands: sm start qwen | sm start deepseek | sm start deepseek-ds4 | sm pull … | sm stop"
 }
 
 ensure_models_dir() {
@@ -199,6 +228,28 @@ ensure_models_dir() {
     echo "Sync repo then: bash scripts/spark-ops/setup-spark.sh"
     exit 1
   fi
+}
+
+start_qwen() {
+  stop_all
+  echo "Starting Qwen3.6-35B-A3B-NVFP4 (vLLM) on :8000 ..."
+  echo "Profile: data analysis — VLLM_MAX_NUM_SEQS=${VLLM_MAX_NUM_SEQS:-6}  VLLM_MAX_MODEL_LEN=${VLLM_MAX_MODEL_LEN:-131072}"
+  echo "Tools + reasoning on; override env for full 262k (lower seqs)."
+  local rc=0
+  if [ -x "${HOME}/bin/vllm-qwen35-docker.sh" ]; then
+    PORT=8000 "${HOME}/bin/vllm-qwen35-docker.sh"
+    rc=$?
+  elif [ -x "${REPO_SPARK}/bin/vllm-qwen35-docker.sh" ]; then
+    PORT=8000 bash "${REPO_SPARK}/bin/vllm-qwen35-docker.sh"
+    rc=$?
+  else
+    echo "Missing vllm-qwen35-docker.sh — run: bash scripts/spark-ops/setup-spark.sh"
+    exit 1
+  fi
+  if [ "${rc}" -eq 0 ]; then
+    arm_autostart qwen
+  fi
+  return "${rc}"
 }
 
 start_deepseek_exl3() {
@@ -297,6 +348,29 @@ start_deepseek_ds4() {
   return "${rc}"
 }
 
+download_qwen() {
+  if [ -x "${HOME}/bin/download-qwen35-nvfp4.sh" ]; then
+    "${HOME}/bin/download-qwen35-nvfp4.sh"
+  elif [ -x "${REPO_SPARK}/bin/download-qwen35-nvfp4.sh" ]; then
+    bash "${REPO_SPARK}/bin/download-qwen35-nvfp4.sh"
+  else
+    echo "Missing download-qwen35-nvfp4.sh — run: bash scripts/spark-ops/setup-spark.sh"
+    exit 1
+  fi
+}
+
+pull_qwen() {
+  echo "========================================"
+  echo "sm pull qwen — vLLM image + HF NVFP4 weights"
+  echo "========================================"
+  echo "Data-analysis serve profile: 6 seqs / 131k (tools + reasoning)."
+  local image="${VLLM_IMAGE:-vllm/vllm-openai:nightly-aarch64}"
+  echo "Pulling ${image}..."
+  docker pull "${image}"
+  download_qwen
+  echo "==> Qwen pull complete. Start: sm start qwen  →  http://spark-local:8000/v1"
+}
+
 pull_deepseek_exl3() {
   ensure_models_dir
   echo "========================================"
@@ -371,27 +445,38 @@ pull_deepseek_ds4() {
   echo "✅ GGUF backup ready. Start: sm start deepseek-ds4"
 }
 
+pull_all() {
+  pull_qwen
+  pull_deepseek_exl3
+  echo "All pulls finished. Use: sm start qwen|deepseek"
+}
+
 usage() {
   cat <<'EOF'
 Usage: spark-model <command> [model]
 
 Commands:
-  status                 Show DeepSeek :8001 status
-  stop                   Stop DeepSeek (clears reboot autostart)
-  start <model>          Start DeepSeek (returns after reboot)
+  status                 Show Qwen :8000 / DeepSeek :8001 status
+  stop                   Stop all (clears reboot autostart)
+  start <model>          Start one model (exclusive; returns after reboot)
   pull <model>           Prefetch weights (does not start serve)
   download <model>       Alias of pull
 
 Models:
-  deepseek       EXL3 SparkInfer, port 8001 (default)
+  qwen           vLLM Docker, port 8000 — data analysis (6 seqs / 131k, tools)
+  deepseek       EXL3 SparkInfer, port 8001 (8 seqs / 256k / K5)
   deepseek-ds4   ds4-server GGUF backup, port 8001
+  all            qwen + deepseek EXL3 (pull only)
 
 Examples:
   sm status
-  sm pull deepseek
-  sm start deepseek
+  sm pull qwen && sm start qwen
+  sm pull deepseek && sm start deepseek
   sm start deepseek-ds4
   sm stop
+
+Qwen overrides (optional):
+  VLLM_MAX_NUM_SEQS=4 VLLM_MAX_MODEL_LEN=262144 sm start qwen   # full context
 EOF
 }
 
@@ -400,21 +485,30 @@ case "${cmd}" in
   stop) stop_all ;;
   start)
     case "${arg}" in
+      qwen|q) start_qwen ;;
       deepseek-ds4|ds4|deepseek-gguf) start_deepseek_ds4 "${@:3}" ;;
-      deepseek|ds|deep|"")
+      deepseek|ds|deep)
         case "${3:-}" in
           --ds4|--gguf) start_deepseek_ds4 "${@:4}" ;;
           *) start_deepseek_exl3 "${@:3}" ;;
         esac
         ;;
-      *) echo "Need model: deepseek|deepseek-ds4"; usage; exit 1 ;;
+      "")
+        echo "Need model: qwen|deepseek|deepseek-ds4"
+        usage
+        exit 1
+        ;;
+      *) echo "Need model: qwen|deepseek|deepseek-ds4"; usage; exit 1 ;;
     esac
     ;;
   pull|download|dl)
     case "${arg}" in
+      qwen|q) pull_qwen ;;
       deepseek-ds4|ds4|deepseek-gguf) pull_deepseek_ds4 ;;
-      deepseek|ds|deep|all|a|"") pull_deepseek_exl3 ;;
-      *) echo "Need model: deepseek|deepseek-ds4"; usage; exit 1 ;;
+      deepseek|ds|deep) pull_deepseek_exl3 ;;
+      all|a) pull_all ;;
+      "") echo "Need model: qwen|deepseek|deepseek-ds4|all"; usage; exit 1 ;;
+      *) echo "Need model: qwen|deepseek|deepseek-ds4|all"; usage; exit 1 ;;
     esac
     ;;
   -h|--help|help) usage ;;
