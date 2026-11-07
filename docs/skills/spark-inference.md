@@ -1,10 +1,10 @@
 # Skill: spark-inference
 
-Operate DGX Spark **Qwen + DeepSeek** inference on the local network (one at a time).
+Operate DGX Spark **Qwen + DeepSeek + Colibri** inference on the local network (one at a time).
 
 ## Commands
 
-- `sm status|start|stop|pull` (`qwen` / `deepseek` / `deepseek-ds4`)
+- `sm status|start|stop|pull` (`qwen` / `deepseek` / `deepseek-ds4` / `colibri`)
 - `sudo apply-gb10-clock-cap.sh` (300–2200 MHz)
 - `sudo spark-headless on && sudo reboot` (no GUI → more unified RAM)
 - From LAN laptop: `./scripts/spark-ops/update-spark.sh`, `spark-llms`
@@ -15,8 +15,10 @@ Operate DGX Spark **Qwen + DeepSeek** inference on the local network (one at a t
 |-------|------|---------|-----|
 | Qwen | **8000** | 6 seqs / 131k | **Data analysis** (tools + reasoning) |
 | DeepSeek | **8001** | 8 seqs / 256k / K5 | Long-context reasoning |
+| Colibri | **8003** | qwen36-35b CUDA | Opt-in Colibri engine |
 
-DeepSeek recipe: https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark
+DeepSeek recipe: https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark  
+Colibri: https://github.com/JustVugg/colibri (`sm pull colibri` — not in `sm pull all`)
 
 ## Boot / power-loss
 

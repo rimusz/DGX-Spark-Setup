@@ -8,7 +8,7 @@
 #   ./scripts/spark-ops/update-spark.sh --local            # already on Spark (git pull if clone, then setup)
 #   ./scripts/spark-ops/update-spark.sh --host ${SPARK_HOST:-user@spark}
 #   ./scripts/spark-ops/update-spark.sh --images           # also sm pull all (images/weights; does not start models)
-#   ./scripts/spark-ops/update-spark.sh --images qwen         # only pull named model(s): qwen|deepseek|deepseek-ds4|all
+#   ./scripts/spark-ops/update-spark.sh --images qwen         # only pull named model(s): qwen|deepseek|deepseek-ds4|colibri|all
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -198,6 +198,8 @@ PY
     else
       live=deepseek
     fi
+  elif curl -sf --connect-timeout 2 http://127.0.0.1:8003/v1/models >/dev/null 2>&1; then
+    live=colibri
   fi
   if [ -n "${live}" ]; then
     mkdir -p "${HOME}/.config/spark-models"
@@ -232,10 +234,12 @@ echo "  sudo ~/bin/spark-privileged-bootstrap.sh   # docker + GB10 2200 MHz cloc
 echo "  sm pull qwen && sm start qwen              # :8000 data analysis (6 seqs / 131k)"
 echo "  sm pull deepseek && sm start deepseek      # :8001 EXL3"
 echo "  sm start deepseek-ds4                      # optional GGUF backup"
+echo "  sm pull colibri && sm start colibri        # :8003 Colibri qwen36-35b (opt-in)"
 echo "  sm status"
 echo ""
 echo "LAN OpenAI bases:"
 echo "  Qwen:     http://spark-local:8000/v1"
 echo "  DeepSeek: http://spark-local:8001/v1"
+echo "  Colibri:  http://spark-local:8003/v1"
 echo "Headless (free RAM): sudo spark-headless on && sudo reboot"
 echo "Power-loss: firmware AC→power-on + gb10-clock-cap + crontab @reboot spark-boot.sh"

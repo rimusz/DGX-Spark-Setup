@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # After reboot, start last armed model from `sm start`.
-# File: ~/.config/spark-models/autostart  (qwen|deepseek|deepseek-ds4)
+# File: ~/.config/spark-models/autostart  (qwen|deepseek|deepseek-ds4|colibri)
 # Legacy: ~/.config/ds4/autostart → deepseek (EXL3 default)
 # Cron: @reboot sleep 30 && ~/bin/spark-boot.sh
 set -euo pipefail
@@ -20,7 +20,7 @@ elif [ -f "${LEGACY}" ]; then
 fi
 
 case "${model}" in
-  qwen|deepseek|deepseek-ds4) ;;
+  qwen|deepseek|deepseek-ds4|colibri) ;;
   *) exit 0 ;;
 esac
 
@@ -121,8 +121,30 @@ boot_deepseek_ds4() {
   disown || true
 }
 
+
+boot_colibri() {
+  local port="${PORT:-8003}"
+  local repo="${HOME}/DGX-Spark-Setup/spark"
+  local start="${repo}/models/colibri/start.sh"
+  if url_ok "${port}"; then
+    exit 0
+  fi
+  if [ ! -x "${start}" ] && [ ! -f "${start}" ]; then
+    echo "[$(date)] spark-boot: ${start} missing" >> "${LOG}"
+    exit 1
+  fi
+  echo "[$(date)] spark-boot: starting colibri (qwen36-35b)" >> "${LOG}"
+  mkdir -p "${HOME}/.spark-models/colibri"
+  cd "${HOME}/.spark-models/colibri"
+  PORT="${port}" HOST="${HOST:-0.0.0.0}"     COLIBRI_DIR="${COLIBRI_DIR:-${HOME}/code/colibri}"     COLIBRI_MODEL_DIR="${COLIBRI_MODEL_DIR:-${HOME}/colibri-models}"     bash "${start}" >> "${LOG}" 2>&1 || {
+      echo "[$(date)] spark-boot: colibri start failed" >> "${LOG}"
+      exit 1
+    }
+}
+
 case "${model}" in
   qwen) boot_qwen ;;
   deepseek) boot_deepseek ;;
   deepseek-ds4) boot_deepseek_ds4 ;;
+  colibri) boot_colibri ;;
 esac

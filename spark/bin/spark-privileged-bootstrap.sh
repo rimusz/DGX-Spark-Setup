@@ -74,6 +74,7 @@ echo "NEXT (as ${SPARK_USER}):"
 echo "  newgrp docker   # or re-login"
 echo "  bash ~/DGX-Spark-Setup/scripts/spark-ops/setup-spark.sh"
 echo "  sm pull deepseek && sm start deepseek"
+echo "  sm pull colibri && sm start colibri   # optional :8003"
 echo "  sudo ~/bin/spark-headless on && sudo reboot   # optional: no GUI, more unified RAM"
 echo
 echo "Access is LAN-only (no Tailscale). From a LAN client:"

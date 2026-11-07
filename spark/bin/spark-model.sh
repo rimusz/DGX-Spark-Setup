@@ -4,18 +4,20 @@
 #
 #   sm status
 #   sm stop
-#   sm start qwen|deepseek|deepseek-ds4
-#   sm pull qwen|deepseek|deepseek-ds4|all
+#   sm start qwen|deepseek|deepseek-ds4|colibri
+#   sm pull qwen|deepseek|deepseek-ds4|colibri|all
 #
 # Ports (OpenAI base = http://spark-local:<port>/v1 on LAN):
 #   qwen           → 8000  vLLM Docker  Qwen3.6-35B-A3B-NVFP4 (data analysis: 6/131k)
 #   deepseek       → 8001  EXL3 / SparkInfer  DeepSeek-V4-Flash-0731
 #   deepseek-ds4   → 8001  ds4-server GGUF backup
+#   colibri        → 8003  Colibri CUDA  qwen36-35b (JustVugg/colibri)
 #
 # Recipes:
 #   Qwen:     this repo (vllm-qwen35-docker.sh)
 #   DeepSeek: rimusz/DeepSeek-v4-Flash-One-DGX-Spark
 #   Backup:   Entrpi/ds4-on-spark (GGUF in ~/gguf)
+#   Colibri:  JustVugg/colibri (qwen36-35b int4 container, CUDA on GB10)
 set -euo pipefail
 
 export PATH="${HOME}/bin:${HOME}/.local/bin:${PATH}"
@@ -40,11 +42,14 @@ fi
 
 MODELS_DIR="${REPO_SPARK}/models"
 RUNTIME_DIR="${HOME}/.spark-models"
-mkdir -p "${RUNTIME_DIR}/deepseek" "${HOME}/logs"
+mkdir -p "${RUNTIME_DIR}/deepseek" "${RUNTIME_DIR}/colibri" "${HOME}/logs"
 
 DS4_CTX="${CTX:-524288}"
 EXL3_DIR="${EXL3_DIR:-${HOME}/code/dsv4-exl3}"
 EXL3_REPO_URL="${EXL3_REPO_URL:-https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark.git}"
+COLIBRI_DIR="${COLIBRI_DIR:-${HOME}/code/colibri}"
+COLIBRI_REPO_URL="${COLIBRI_REPO_URL:-https://github.com/JustVugg/colibri.git}"
+COLIBRI_MODEL_DIR="${COLIBRI_MODEL_DIR:-${HOME}/colibri-models}"
 AUTOSTART_FILE="${HOME}/.config/spark-models/autostart"
 
 arm_autostart() {
@@ -75,6 +80,7 @@ port_for() {
   case "$1" in
     qwen) echo 8000 ;;
     deepseek|deepseek-ds4) echo 8001 ;;
+    colibri) echo 8003 ;;
     *) return 1 ;;
   esac
 }
@@ -84,6 +90,7 @@ model_id_for() {
     qwen) echo "qwen36-35b-a3b-nvfp4 (data analysis 6/131k)" ;;
     deepseek) echo "DeepSeek-V4-Flash (EXL3 0731)" ;;
     deepseek-ds4) echo "DeepSeek-V4-Flash (ds4 GGUF backup)" ;;
+    colibri) echo "qwen36-35b (Colibri)" ;;
     *) echo "?" ;;
   esac
 }
@@ -99,6 +106,7 @@ engine_for() {
       fi
       ;;
     deepseek-ds4) echo "ds4-server (backup)" ;;
+    colibri) echo "Colibri CUDA" ;;
     *) echo "?" ;;
   esac
 }
@@ -135,10 +143,18 @@ stop_deepseek() {
   fi
 }
 
+stop_colibri() {
+  if [ -x "${MODELS_DIR}/colibri/stop.sh" ] || [ -f "${MODELS_DIR}/colibri/stop.sh" ]; then
+    echo "Stopping Colibri (qwen36-35b)..."
+    PORT=8003 COLIBRI_DIR="${COLIBRI_DIR}" bash "${MODELS_DIR}/colibri/stop.sh" --force 2>/dev/null || true
+  fi
+}
+
 stop_all() {
   disarm_autostart
   stop_qwen
   stop_deepseek
+  stop_colibri
   if systemctl is-active --quiet vllm-qwen35 2>/dev/null; then
     echo "Note: native vllm-qwen35 unit active — sudo systemctl stop vllm-qwen35"
   fi
@@ -216,9 +232,14 @@ do_status() {
   else
     status_one deepseek
   fi
+  status_one colibri
   echo
-  echo "URLs: http://spark-local:8000/v1 (qwen)  |  http://spark-local:8001/v1 (deepseek)"
-  echo "Commands: sm start qwen | sm start deepseek | sm start deepseek-ds4 | sm pull … | sm stop"
+  echo "URLs:"
+  echo "  http://spark-local:8000/v1 (qwen)  |  http://spark-local:8001/v1 (deepseek)"
+  echo "  http://spark-local:8003/v1 (colibri)"
+  echo "Commands:"
+  echo "  sm start qwen | sm start deepseek | sm start deepseek-ds4 | sm start colibri"
+  echo "  sm pull qwen|deepseek|colibri|all  |  sm stop"
 }
 
 ensure_models_dir() {
@@ -445,10 +466,41 @@ pull_deepseek_ds4() {
   echo "✅ GGUF backup ready. Start: sm start deepseek-ds4"
 }
 
+start_colibri() {
+  ensure_models_dir
+  stop_all
+  echo "Starting Colibri qwen36-35b (CUDA) on :8003 ..."
+  echo "Engine: JustVugg/colibri  dir=${COLIBRI_DIR}  models=${COLIBRI_MODEL_DIR}"
+  echo "Exclusive with qwen/deepseek — stop others first (done)."
+  mkdir -p "${RUNTIME_DIR}/colibri"
+  cd "${RUNTIME_DIR}/colibri"
+  local rc=0
+  PORT=8003 HOST="${HOST:-0.0.0.0}"     COLIBRI_DIR="${COLIBRI_DIR}"     COLIBRI_MODEL_DIR="${COLIBRI_MODEL_DIR}"     bash "${MODELS_DIR}/colibri/start.sh" "$@"
+  rc=$?
+  if [ "${rc}" -eq 0 ]; then
+    arm_autostart colibri
+  fi
+  return "${rc}"
+}
+
+pull_colibri() {
+  ensure_models_dir
+  echo "========================================"
+  echo "  Engine: JustVugg/colibri → ${COLIBRI_DIR}"
+  echo "  Model:  qwen36-35b (~23 GiB int4 container) → ${COLIBRI_MODEL_DIR}"
+  echo "========================================"
+  mkdir -p "${RUNTIME_DIR}/colibri"
+  cd "${RUNTIME_DIR}/colibri"
+  PORT=8003 HOST="${HOST:-0.0.0.0}"     COLIBRI_DIR="${COLIBRI_DIR}"     COLIBRI_MODEL_DIR="${COLIBRI_MODEL_DIR}"     bash "${MODELS_DIR}/colibri/start.sh" --download-only
+  echo "==> Colibri pull complete. Start with: sm start colibri"
+}
+
 pull_all() {
+  # Production duo only — Colibri is opt-in: sm pull colibri
   pull_qwen
   pull_deepseek_exl3
   echo "All pulls finished. Use: sm start qwen|deepseek"
+  echo "Optional: sm pull colibri && sm start colibri   # :8003 qwen36-35b"
 }
 
 usage() {
@@ -456,7 +508,7 @@ usage() {
 Usage: spark-model <command> [model]
 
 Commands:
-  status                 Show Qwen :8000 / DeepSeek :8001 status
+  status                 Show Qwen :8000 / DeepSeek :8001 / Colibri :8003 status
   stop                   Stop all (clears reboot autostart)
   start <model>          Start one model (exclusive; returns after reboot)
   pull <model>           Prefetch weights (does not start serve)
@@ -466,13 +518,15 @@ Models:
   qwen           vLLM Docker, port 8000 — data analysis (6 seqs / 131k, tools)
   deepseek       EXL3 SparkInfer, port 8001 (8 seqs / 256k / K5)
   deepseek-ds4   ds4-server GGUF backup, port 8001
-  all            qwen + deepseek EXL3 (pull only)
+  colibri        Colibri CUDA, port 8003 — qwen36-35b (JustVugg/colibri)
+  all            qwen + deepseek EXL3 (pull only; colibri is opt-in)
 
 Examples:
   sm status
   sm pull qwen && sm start qwen
   sm pull deepseek && sm start deepseek
   sm start deepseek-ds4
+  sm pull colibri && sm start colibri
   sm stop
 
 Qwen overrides (optional):
@@ -493,12 +547,13 @@ case "${cmd}" in
           *) start_deepseek_exl3 "${@:3}" ;;
         esac
         ;;
+      colibri|coli|qwen36-colibri|colibri-qwen) start_colibri "${@:3}" ;;
       "")
-        echo "Need model: qwen|deepseek|deepseek-ds4"
+        echo "Need model: qwen|deepseek|deepseek-ds4|colibri"
         usage
         exit 1
         ;;
-      *) echo "Need model: qwen|deepseek|deepseek-ds4"; usage; exit 1 ;;
+      *) echo "Need model: qwen|deepseek|deepseek-ds4|colibri"; usage; exit 1 ;;
     esac
     ;;
   pull|download|dl)
@@ -506,9 +561,10 @@ case "${cmd}" in
       qwen|q) pull_qwen ;;
       deepseek-ds4|ds4|deepseek-gguf) pull_deepseek_ds4 ;;
       deepseek|ds|deep) pull_deepseek_exl3 ;;
+      colibri|coli|qwen36-colibri|colibri-qwen) pull_colibri ;;
       all|a) pull_all ;;
-      "") echo "Need model: qwen|deepseek|deepseek-ds4|all"; usage; exit 1 ;;
-      *) echo "Need model: qwen|deepseek|deepseek-ds4|all"; usage; exit 1 ;;
+      "") echo "Need model: qwen|deepseek|deepseek-ds4|colibri|all"; usage; exit 1 ;;
+      *) echo "Need model: qwen|deepseek|deepseek-ds4|colibri|all"; usage; exit 1 ;;
     esac
     ;;
   -h|--help|help) usage ;;

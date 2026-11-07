@@ -1,4 +1,4 @@
-# DGX Spark — Qwen + DeepSeek inference
+# DGX Spark — Qwen + DeepSeek (+ Colibri) inference
 
 **Role:** OpenAI-compatible inference on GB10. **One model at a time.** No agents.  
 **Clients:** LAN only (`spark-local` / `YOUR_LAN_IP`). No Tailscale.
@@ -12,11 +12,13 @@
 | **Qwen** | **`:8000`** vLLM — data analysis default **6 seqs / 131k** |
 | **DeepSeek** | **`:8001`** EXL3 / SparkInfer — **8 seqs / 256k / K5** |
 | Backup | `sm start deepseek-ds4` (ds4 GGUF, same port as DeepSeek) |
+| **Colibri** | **`:8003`** JustVugg/colibri — **qwen36-35b** (opt-in) |
 | Switcher | `sm` / `spark-model` |
 | Stability | GB10 clock cap **300–2200 MHz** (`gb10-clock-cap.service`) |
 | Dashboard | `http://spark-local:8787` |
 
-DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark) (`sm pull deepseek` → `~/code/dsv4-exl3`).
+DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark) (`sm pull deepseek` → `~/code/dsv4-exl3`).  
+Colibri: [JustVugg/colibri](https://github.com/JustVugg/colibri) (`sm pull colibri` → `~/code/colibri`, weights `~/colibri-models`).
 
 ---
 
@@ -26,7 +28,7 @@ DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rim
 spark/
 ├── README.md
 ├── bin/
-│   ├── spark-model.sh              # sm — start/stop/pull (qwen|deepseek)
+│   ├── spark-model.sh              # sm — start/stop/pull (qwen|deepseek|colibri)
 │   ├── vllm-qwen35-docker.sh       # Qwen vLLM Docker (6/131k data-analysis default)
 │   ├── vllm-docker-ops.sh          # vo — Qwen container helpers
 │   ├── download-qwen35-nvfp4.sh
@@ -38,6 +40,7 @@ spark/
 │   ├── ensure-spark-dashboard.sh
 │   └── spark-privileged-bootstrap.sh
 ├── models/deepseek/                # EXL3 + ds4 wrappers
+├── models/colibri/                 # JustVugg/colibri qwen36-35b (CUDA)
 └── systemd/gb10-clock-cap.service
 ```
 
@@ -66,12 +69,20 @@ sm status
 
 Optional GGUF backup: `sm pull deepseek-ds4` then `sm start deepseek-ds4`.
 
+Optional Colibri (exclusive CUDA path for qwen36-35b — not in `sm pull all`):
+
+```bash
+sm pull colibri
+sm start colibri     # → http://spark-local:8003/v1
+```
+
 ### Profiles
 
 | Model | Default | Notes |
 |-------|---------|--------|
 | **Qwen** | `VLLM_MAX_NUM_SEQS=6`, `VLLM_MAX_MODEL_LEN=131072` | Tool calling (`qwen3_xml`) + reasoning; best for **data analysis** |
 | DeepSeek | `MAX_NUM_SEQS=8`, `MAX_MODEL_LEN=256000`, `DSPARK_TOKENS=5` | Heavier EXL3; deeper long-context |
+| Colibri | `COLIBRI_MODEL=qwen36-35b`, CUDA backend | Opt-in; ~23 GiB resident; prefer vLLM `qwen` for throughput |
 
 Qwen full context (fewer streams):
 
@@ -87,7 +98,7 @@ After AC returns, the **machine** must power on by itself; then OS boot helpers 
 
 1. Firmware **After Power Loss → Auto Boot** (aka Restore AC Power Loss → Power On) — see below.
 2. `gb10-clock-cap.service` reapplies `nvidia-smi -lgc 300,2200` every boot.
-3. Last `sm start qwen|deepseek|deepseek-ds4` arms crontab `@reboot` → `spark-boot.sh` (`sm stop` clears it).
+3. Last `sm start qwen|deepseek|deepseek-ds4|colibri` arms crontab `@reboot` → `spark-boot.sh` (`sm stop` clears it).
 
 ```bash
 sudo apply-gb10-clock-cap.sh
@@ -95,6 +106,7 @@ systemctl status gb10-clock-cap
 sm status
 curl -sf http://127.0.0.1:8000/v1/models   # if last start was qwen
 curl -sf http://127.0.0.1:8001/v1/models   # if last start was deepseek
+curl -sf http://127.0.0.1:8003/v1/models   # if last start was colibri
 ```
 
 Community prior art for the clock cap: [DGX-Spark-Hard-Poweroff-Fix](https://github.com/tonyd2wild/DGX-Spark-Hard-Poweroff-Fix).
