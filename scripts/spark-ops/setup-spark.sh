@@ -23,7 +23,7 @@ if [ -z "${REPO_ROOT:-}" ] || [ ! -d "${BIN_SRC}" ]; then
 fi
 
 echo "========================================"
-echo "DGX Spark DeepSeek helpers → ${DEST_BIN}"
+echo "DGX Spark helpers (Qwen + DeepSeek) → ${DEST_BIN}"
 echo "========================================"
 
 mkdir -p "${DEST_BIN}" "${DEST_SRC}" "${HOME}/logs" \
@@ -34,6 +34,10 @@ install -m 755 "${BIN_SRC}/ensure-spark-dashboard.sh" "${DEST_BIN}/"
 install -m 755 "${BIN_SRC}/spark-privileged-bootstrap.sh" "${DEST_BIN}/"
 install -m 755 "${BIN_SRC}/spark-model.sh" "${DEST_BIN}/spark-model"
 install -m 755 "${BIN_SRC}/spark-model.sh" "${DEST_BIN}/spark-model.sh"
+install -m 755 "${BIN_SRC}/vllm-qwen35-docker.sh" "${DEST_BIN}/vllm-qwen35-docker.sh"
+install -m 755 "${BIN_SRC}/vllm-docker-ops.sh" "${DEST_BIN}/vllm-docker-ops.sh"
+install -m 755 "${BIN_SRC}/download-qwen35-nvfp4.sh" "${DEST_BIN}/download-qwen35-nvfp4.sh"
+ln -sfn "${DEST_BIN}/vllm-docker-ops.sh" "${DEST_BIN}/vo"
 install -m 755 "${BIN_SRC}/ds4-boot.sh" "${DEST_BIN}/ds4-boot.sh"
 install -m 755 "${BIN_SRC}/spark-boot.sh" "${DEST_BIN}/spark-boot.sh"
 install -m 755 "${BIN_SRC}/spark-headless.sh" "${DEST_BIN}/spark-headless.sh"
@@ -184,7 +188,10 @@ tmp.unlink(missing_ok=True)
 print(f"crontab: {line}" if boot.is_file() else "crontab: spark-boot.sh missing — skip")
 PY
   local live=""
-  if curl -sf --connect-timeout 2 http://127.0.0.1:8001/v1/models >/dev/null 2>&1 \
+  if curl -sf --connect-timeout 2 http://127.0.0.1:8000/v1/models >/dev/null 2>&1 \
+    || docker ps --format '{{.Names}}' 2>/dev/null | grep -qx 'vllm-qwen35'; then
+    live=qwen
+  elif curl -sf --connect-timeout 2 http://127.0.0.1:8001/v1/models >/dev/null 2>&1 \
     || pgrep -x ds4-server >/dev/null 2>&1; then
     if pgrep -x ds4-server >/dev/null 2>&1; then
       live=deepseek-ds4
@@ -212,7 +219,9 @@ bash "${DEST_BIN}/ensure-spark-dashboard.sh" || true
 
 echo ""
 echo "Installed:"
-ls -1 "${DEST_BIN}"/ensure-* "${DEST_BIN}"/spark-* "${DEST_BIN}"/sm "${DEST_BIN}"/*clock* 2>/dev/null || true
+ls -1 "${DEST_BIN}"/ensure-* "${DEST_BIN}"/spark-* "${DEST_BIN}"/sm \
+  "${DEST_BIN}"/vllm-* "${DEST_BIN}"/download-qwen* "${DEST_BIN}"/vo \
+  "${DEST_BIN}"/*clock* 2>/dev/null || true
 echo "hf: $(command -v hf 2>/dev/null || echo 'not on PATH — source ~/.bashrc or: ensure-hf-cli.sh')"
 echo ""
 echo "Docker group: $(id -nG | tr ' ' '\n' | grep -qx docker && echo OK || echo 'MISSING — sudo usermod -aG docker $USER')"
@@ -220,10 +229,13 @@ echo ""
 echo "Next:"
 echo "  source ~/.bashrc"
 echo "  sudo ~/bin/spark-privileged-bootstrap.sh   # docker + GB10 2200 MHz clock cap"
+echo "  sm pull qwen && sm start qwen              # :8000 data analysis (6 seqs / 131k)"
 echo "  sm pull deepseek && sm start deepseek      # :8001 EXL3"
 echo "  sm start deepseek-ds4                      # optional GGUF backup"
 echo "  sm status"
 echo ""
-echo "LAN OpenAI base: http://spark-local:8001/v1"
+echo "LAN OpenAI bases:"
+echo "  Qwen:     http://spark-local:8000/v1"
+echo "  DeepSeek: http://spark-local:8001/v1"
 echo "Headless (free RAM): sudo spark-headless on && sudo reboot"
 echo "Power-loss: firmware AC→power-on + gb10-clock-cap + crontab @reboot spark-boot.sh"
