@@ -1,5 +1,5 @@
 #!/bin/bash
-# spark-llms — probe Qwen :8000 and DeepSeek :8001 (LAN only).
+# spark-llms — probe Qwen :8000, DeepSeek :8001, Colibri :8003 (LAN only).
 set -euo pipefail
 
 SPARK_LOCAL="${SPARK_LOCAL:-spark-local}"
@@ -68,8 +68,9 @@ echo ""
 any=0
 probe_slot qwen 8000 "vLLM / data analysis 6·131k" && any=1 || true
 probe_slot deepseek 8001 "EXL3 / SparkInfer or ds4" && any=1 || true
+probe_slot colibri 8003 "Colibri CUDA qwen36-35b" && any=1 || true
 
 if [ "${any}" -eq 0 ]; then
-  echo "⚠️  No model serving. On Spark: sm status ; sm start qwen|deepseek"
+  echo "⚠️  No model serving. On Spark: sm status ; sm start qwen|deepseek|colibri"
   echo ""
 fi
