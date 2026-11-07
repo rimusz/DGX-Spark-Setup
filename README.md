@@ -9,8 +9,10 @@ Public tooling to run **OpenAI-compatible LLMs** on one **NVIDIA DGX Spark** (GB
 | **`qwen`** | **`:8000`** | vLLM Docker | **6 seqs / 131k** | **Data analysis** (tools + reasoning) |
 | **`deepseek`** | **`:8001`** | EXL3 / SparkInfer | 8 seqs / 256k / K5 | Long-context reasoning |
 | `deepseek-ds4` | `:8001` | ds4 GGUF backup | — | Fallback for DeepSeek |
+| `colibri` | `:8003` | Colibri CUDA | qwen36-35b (~23 GiB) | Opt-in Colibri engine (same family as Qwen) |
 
-DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark)
+DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark)  
+Colibri: [JustVugg/colibri](https://github.com/JustVugg/colibri) (`sm pull colibri` — not part of `sm pull all`)
 
 **Access:** **LAN only** (no Tailscale) via `spark-local` / LAN IP.
 
@@ -47,6 +49,9 @@ sm start qwen          # → http://spark-local:8000/v1  (6 concurrent / 131k)
 sm pull deepseek
 sm start deepseek      # → http://spark-local:8001/v1
 
+# Optional: Colibri CUDA path for qwen36-35b (~23 GiB)
+# sm pull colibri && sm start colibri   # → http://spark-local:8003/v1
+
 sm status
 
 # optional: disable GUI for more unified RAM
@@ -62,6 +67,7 @@ export SPARK_LAN_IP=192.168.x.x
 ./scripts/spark-ops/update-spark.sh
 curl -sf http://spark-local:8000/v1/models   # qwen
 curl -sf http://spark-local:8001/v1/models   # deepseek
+curl -sf http://spark-local:8003/v1/models   # colibri (if started)
 ```
 
 ---
@@ -70,6 +76,7 @@ curl -sf http://spark-local:8001/v1/models   # deepseek
 
 - **Data analysis / agents with tools / up to 6 parallel streams** → `sm start qwen`
 - **Heavier long-context reasoning (256k, 8 streams)** → `sm start deepseek`
+- **Try Colibri’s CUDA engine on qwen36-35b** → `sm pull colibri && sm start colibri` (exclusive; slower than vLLM Qwen for most workloads)
 
 Qwen full 262k context (fewer streams):
 
@@ -85,6 +92,7 @@ VLLM_MAX_MODEL_LEN=262144 VLLM_MAX_NUM_SEQS=4 sm start qwen
 |-------|----------|
 | Qwen | `http://spark-local:8000/v1` or `http://YOUR_LAN_IP:8000/v1` |
 | DeepSeek | `http://spark-local:8001/v1` or `http://YOUR_LAN_IP:8001/v1` |
+| Colibri | `http://spark-local:8003/v1` or `http://YOUR_LAN_IP:8003/v1` |
 
 Optional dashboard: `:8787` (loopback + LAN).
 
