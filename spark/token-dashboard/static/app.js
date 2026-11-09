@@ -128,13 +128,14 @@
     lastPayload = data;
     const online = data.online || [];
     const status = $("status");
+    const statusText = $("statusText");
     if (online.length) {
       status.classList.remove("is-off");
       const parts = online.map((o) => `${o.model} :${o.port}`).join(", ");
-      status.innerHTML = `<span class="dot"></span>Online: ${parts} · updated ${fmtClock(data.updated_at)}`;
+      statusText.textContent = `Online: ${parts} · updated ${fmtClock(data.updated_at)}`;
     } else {
       status.classList.add("is-off");
-      status.innerHTML = `<span class="dot"></span>No LLM online · updated ${fmtClock(data.updated_at)}`;
+      statusText.textContent = `No LLM online · updated ${fmtClock(data.updated_at)}`;
     }
 
     const sel = $("modelFilter");
@@ -247,7 +248,9 @@
   window.addEventListener("resize", () => { if (lastPayload) render(lastPayload); });
 
   refresh().catch((e) => {
-    $("status").textContent = "Failed to load: " + e.message;
+    const status = $("status");
+    status.classList.add("is-off");
+    $("statusText").textContent = "Failed to load: " + e.message;
   });
   setInterval(() => refresh().catch(console.error), POLL_MS);
 })();

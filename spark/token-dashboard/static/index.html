@@ -8,18 +8,21 @@
 </head>
 <body>
   <header class="top">
-    <div class="top-left">
+    <div class="title-row">
       <h1>Spark token usage</h1>
-      <div id="status" class="status">Starting…</div>
+      <a id="systemLink" class="sys-link" href="http://127.0.0.1:8787" target="_blank" rel="noopener">System dashboard ↗</a>
     </div>
-    <div class="top-right">
+    <div class="status-row">
+      <div id="status" class="status is-off" role="status">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="statusText">Checking…</span>
+      </div>
       <label class="filter">
-        <span class="sr">Model filter</span>
-        <select id="modelFilter" aria-label="Model filter">
+        <span class="filter-label">Model</span>
+        <select id="modelFilter" aria-label="Model">
           <option value="all">All models</option>
         </select>
       </label>
-      <a id="systemLink" class="sys-link" href="http://127.0.0.1:8787" target="_blank" rel="noopener">System dashboard ↗</a>
     </div>
   </header>
 
