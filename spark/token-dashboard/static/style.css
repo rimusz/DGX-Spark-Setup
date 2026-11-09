@@ -26,28 +26,17 @@ body { padding: 20px 24px 48px; max-width: 1400px; margin: 0 auto; }
 
 .top {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 14px;
   margin-bottom: 18px;
-}
-.title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 16px;
+  flex-wrap: wrap;
 }
 .top h1 {
   margin: 0;
   font-size: 22px;
   font-weight: 650;
   letter-spacing: -0.02em;
-}
-.status-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+  white-space: nowrap;
 }
 .status {
   display: inline-flex;
@@ -57,6 +46,8 @@ body { padding: 20px 24px 48px; max-width: 1400px; margin: 0 auto; }
   font-size: 13px;
   font-family: var(--mono);
   min-height: 20px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .status .dot {
   flex: 0 0 auto;
@@ -72,6 +63,12 @@ body { padding: 20px 24px 48px; max-width: 1400px; margin: 0 auto; }
 .status.is-off .dot {
   background: #666;
   box-shadow: none;
+}
+.top-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
 }
 .filter {
   display: inline-flex;
