@@ -6,7 +6,7 @@ Spark is **LLM inference only**, **LAN-only** access. Run **one** model at a tim
 
 - Host: NVIDIA DGX Spark (GB10 / aarch64)
 - **Qwen** on **:8000** — data analysis default (`sm start qwen`, 6 seqs / 131k, tools)
-- **DeepSeek** on **:8001** — EXL3 (`sm start deepseek`, 8 seqs / 256k / K5)
+- **DeepSeek** on **:8001** — EXL3 (`sm start deepseek`, 6 seqs / 256k / K5; shared GPU/KV)
 - Backup: `sm start deepseek-ds4` (ds4 GGUF)
 - **Colibri** on **:8003** — opt-in (`sm pull colibri && sm start colibri`, qwen36-35b CUDA)
 - DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark)

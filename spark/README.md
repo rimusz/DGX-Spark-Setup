@@ -10,7 +10,7 @@
 | User | `YOUR_LINUX_USER` |
 | Hardware | NVIDIA DGX Spark (GB10, 128 GB unified, aarch64) |
 | **Qwen** | **`:8000`** vLLM — data analysis default **6 seqs / 131k** |
-| **DeepSeek** | **`:8001`** EXL3 / SparkInfer — **8 seqs / 256k / K5** |
+| **DeepSeek** | **`:8001`** EXL3 / SparkInfer — **6 seqs / 256k / K5** (shared GPU/KV) |
 | Backup | `sm start deepseek-ds4` (ds4 GGUF, same port as DeepSeek) |
 | **Colibri** | **`:8003`** JustVugg/colibri — **qwen36-35b** (opt-in) |
 | Switcher | `sm` / `spark-model` |
@@ -81,7 +81,7 @@ sm start colibri     # → http://spark-local:8003/v1
 | Model | Default | Notes |
 |-------|---------|--------|
 | **Qwen** | `VLLM_MAX_NUM_SEQS=6`, `VLLM_MAX_MODEL_LEN=131072` | Tool calling (`qwen3_xml`) + reasoning; best for **data analysis** |
-| DeepSeek | `MAX_NUM_SEQS=8`, `MAX_MODEL_LEN=256000`, `DSPARK_TOKENS=5` | Heavier EXL3; deeper long-context |
+| DeepSeek | `MAX_NUM_SEQS=6`, `MAX_MODEL_LEN=256000`, `DSPARK_TOKENS=5` | Heavier EXL3; active streams share GPU/KV |
 | Colibri | `COLIBRI_MODEL=qwen36-35b`, CUDA backend | Opt-in; ~23 GiB resident; prefer vLLM `qwen` for throughput |
 
 Qwen full context (fewer streams):

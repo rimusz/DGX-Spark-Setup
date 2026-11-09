@@ -15,7 +15,7 @@ Full guide: **[spark/README.md](../../spark/README.md)**.
 | Command | Port | Engine |
 |---------|------|--------|
 | `sm start qwen` | 8000 | vLLM Docker (6 seqs / 131k data analysis) |
-| `sm start deepseek` | 8001 | EXL3 / SparkInfer (8 seqs / 256k / K5) |
+| `sm start deepseek` | 8001 | EXL3 / SparkInfer (6 seqs / 256k / K5; shared GPU/KV) |
 | `sm start deepseek-ds4` | 8001 | ds4-server GGUF backup |
 | `sm start colibri` | 8003 | Colibri CUDA qwen36-35b (opt-in) |
 | `sm status` / `sm stop` | — | — |

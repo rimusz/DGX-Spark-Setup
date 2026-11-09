@@ -69,11 +69,11 @@ boot_deepseek() {
     echo "[$(date)] spark-boot: ${dir}/start.sh missing" >> "${LOG}"
     exit 1
   fi
-  echo "[$(date)] spark-boot: starting EXL3 DeepSeek :${port} seqs=${MAX_NUM_SEQS:-8} len=${MAX_MODEL_LEN:-256000} k=${DSPARK_TOKENS:-5}" >> "${LOG}"
+  echo "[$(date)] spark-boot: starting EXL3 DeepSeek :${port} seqs=${MAX_NUM_SEQS:-6} len=${MAX_MODEL_LEN:-256000} k=${DSPARK_TOKENS:-5}" >> "${LOG}"
   local wrapper="${HOME}/DGX-Spark-Setup/spark/models/deepseek/start-exl3.sh"
   if [ -x "${wrapper}" ]; then
     PORT="${port}" AUTO_DOWNLOAD=0 ABLATE=0 EXL3_DIR="${dir}" \
-      MAX_NUM_SEQS="${MAX_NUM_SEQS:-8}" MAX_MODEL_LEN="${MAX_MODEL_LEN:-256000}" \
+      MAX_NUM_SEQS="${MAX_NUM_SEQS:-6}" MAX_MODEL_LEN="${MAX_MODEL_LEN:-256000}" \
       DSPARK_TOKENS="${DSPARK_TOKENS:-5}" \
       bash "${wrapper}" --no-wait >> "${LOG}" 2>&1 || {
         echo "[$(date)] spark-boot: start-exl3.sh failed" >> "${LOG}"
@@ -83,7 +83,7 @@ boot_deepseek() {
     (
       cd "${dir}"
       SERVING_PORT="${port}" AUTO_DOWNLOAD=0 ABLATE=0 \
-        MAX_NUM_SEQS="${MAX_NUM_SEQS:-8}" MAX_MODEL_LEN="${MAX_MODEL_LEN:-256000}" \
+        MAX_NUM_SEQS="${MAX_NUM_SEQS:-6}" MAX_MODEL_LEN="${MAX_MODEL_LEN:-256000}" \
         DSPARK_TOKENS="${DSPARK_TOKENS:-5}" \
         ./start.sh --no-wait
     ) >> "${LOG}" 2>&1 || {

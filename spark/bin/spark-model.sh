@@ -278,10 +278,10 @@ start_deepseek_exl3() {
   stop_all
   echo "Starting DeepSeek-V4-Flash EXL3 (SparkInfer) on :8001 ..."
   echo "Recipe: ${EXL3_DIR}  (GGUF backup: sm start deepseek-ds4)"
-  echo "client profile: MAX_NUM_SEQS=${MAX_NUM_SEQS:-8}  MAX_MODEL_LEN=${MAX_MODEL_LEN:-256000}  DSPARK_TOKENS=${DSPARK_TOKENS:-5}"
+  echo "client profile: MAX_NUM_SEQS=${MAX_NUM_SEQS:-6}  MAX_MODEL_LEN=${MAX_MODEL_LEN:-256000}  DSPARK_TOKENS=${DSPARK_TOKENS:-5}"
   local rc=0
   PORT=8001 AUTO_DOWNLOAD="${AUTO_DOWNLOAD:-0}" ABLATE="${ABLATE:-0}" \
-    MAX_NUM_SEQS="${MAX_NUM_SEQS:-8}" MAX_MODEL_LEN="${MAX_MODEL_LEN:-256000}" \
+    MAX_NUM_SEQS="${MAX_NUM_SEQS:-6}" MAX_MODEL_LEN="${MAX_MODEL_LEN:-256000}" \
     DSPARK_TOKENS="${DSPARK_TOKENS:-5}" \
     bash "${MODELS_DIR}/deepseek/start-exl3.sh" "$@"
   rc=$?
@@ -516,7 +516,7 @@ Commands:
 
 Models:
   qwen           vLLM Docker, port 8000 — data analysis (6 seqs / 131k, tools)
-  deepseek       EXL3 SparkInfer, port 8001 (8 seqs / 256k / K5)
+  deepseek       EXL3 SparkInfer, port 8001 (6 seqs / 256k / K5)
   deepseek-ds4   ds4-server GGUF backup, port 8001
   colibri        Colibri CUDA, port 8003 — qwen36-35b (JustVugg/colibri)
   all            qwen + deepseek EXL3 (pull only; colibri is opt-in)

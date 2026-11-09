@@ -14,7 +14,7 @@ Operate DGX Spark **Qwen + DeepSeek + Colibri** inference on the local network (
 | Model | Port | Default | Use |
 |-------|------|---------|-----|
 | Qwen | **8000** | 6 seqs / 131k | **Data analysis** (tools + reasoning) |
-| DeepSeek | **8001** | 8 seqs / 256k / K5 | Long-context reasoning |
+| DeepSeek | **8001** | 6 seqs / 256k / K5 | Long-context reasoning (shared GPU/KV) |
 | Colibri | **8003** | qwen36-35b CUDA | Opt-in Colibri engine |
 
 DeepSeek recipe: https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark  

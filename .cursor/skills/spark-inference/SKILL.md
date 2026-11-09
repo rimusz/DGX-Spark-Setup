@@ -20,7 +20,7 @@ sm status
 sm pull qwen
 sm start qwen          # :8000 vLLM — data analysis (6 seqs / 131k, tools)
 sm pull deepseek
-sm start deepseek      # :8001 EXL3, 8 seqs / 256k / K5
+sm start deepseek      # :8001 EXL3, 6 seqs / 256k / K5 (shared GPU/KV)
 sm start deepseek-ds4  # :8001 ds4 GGUF backup
 sm pull colibri        # opt-in — not part of sm pull all
 sm start colibri       # :8003 Colibri CUDA qwen36-35b

@@ -7,7 +7,7 @@ Public tooling to run **OpenAI-compatible LLMs** on one **NVIDIA DGX Spark** (GB
 | Key | Port | Engine | Default profile | Best for |
 |-----|------|--------|-----------------|----------|
 | **`qwen`** | **`:8000`** | vLLM Docker | **6 seqs / 131k** | **Data analysis** (tools + reasoning) |
-| **`deepseek`** | **`:8001`** | EXL3 / SparkInfer | 8 seqs / 256k / K5 | Long-context reasoning |
+| **`deepseek`** | **`:8001`** | EXL3 / SparkInfer | 6 seqs / 256k / K5 | Long-context reasoning (shared GPU/KV) |
 | `deepseek-ds4` | `:8001` | ds4 GGUF backup | — | Fallback for DeepSeek |
 | `colibri` | `:8003` | Colibri CUDA | qwen36-35b (~23 GiB) | Opt-in Colibri engine (same family as Qwen) |
 
@@ -75,7 +75,7 @@ curl -sf http://spark-local:8003/v1/models   # colibri (if started)
 ## Which model?
 
 - **Data analysis / agents with tools / up to 6 parallel streams** → `sm start qwen`
-- **Heavier long-context reasoning (256k, 8 streams)** → `sm start deepseek`
+- **Heavier long-context reasoning (256k, 6 streams; shared GPU/KV)** → `sm start deepseek`
 - **Try Colibri’s CUDA engine on qwen36-35b** → `sm pull colibri && sm start colibri` (exclusive; slower than vLLM Qwen for most workloads)
 
 Qwen full 262k context (fewer streams):

@@ -3,7 +3,7 @@
 # start-exl3.sh — EXL3 / SparkInfer DeepSeek-V4-Flash-0731 on :8001.
 #
 # Wraps ~/code/dsv4-exl3/start.sh (clone of
-# rimusz/DeepSeek-v4-Flash-One-DGX-Spark — 8 concurrent seqs / 256k / :8001).
+# rimusz/DeepSeek-v4-Flash-One-DGX-Spark — 6 concurrent seqs / 256k / :8001).
 # GGUF backup remains models/deepseek/start.sh (sm start deepseek-ds4).
 #
 # Usage:
@@ -13,7 +13,7 @@
 # Env:
 #   EXL3_DIR         recipe checkout (default ~/code/dsv4-exl3)
 #   PORT             SERVING_PORT (default 8001)
-#   MAX_NUM_SEQS     concurrent slots (default 8)
+#   MAX_NUM_SEQS     concurrent slots (default 6; active streams share GPU/KV)
 #   MAX_MODEL_LEN    context tokens (default 256000)
 #   DSPARK_TOKENS    speculative draft depth (default 5; engine floor is K5)
 #   MAX_NUM_BATCHED_TOKENS  leave 8224 (b12x workspace lock)
@@ -24,11 +24,11 @@ set -euo pipefail
 EXL3_DIR="${EXL3_DIR:-${HOME}/code/dsv4-exl3}"
 EXL3_REPO_URL="${EXL3_REPO_URL:-https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark.git}"
 PORT="${PORT:-8001}"
-MAX_NUM_SEQS="${MAX_NUM_SEQS:-8}"
+MAX_NUM_SEQS="${MAX_NUM_SEQS:-6}"
 MAX_MODEL_LEN="${MAX_MODEL_LEN:-256000}"
 DSPARK_TOKENS="${DSPARK_TOKENS:-5}"
 MAX_NUM_BATCHED_TOKENS="${MAX_NUM_BATCHED_TOKENS:-8224}"
-# Decode graphs: rows ≈ seqs * (k+1) → 8,16,48 at defaults.
+# Decode graphs: rows ≈ seqs * (k+1) → 6,12,36 at defaults.
 if [ -z "${MAX_CUDAGRAPH_CAPTURE_SIZE:-}" ]; then
   MAX_CUDAGRAPH_CAPTURE_SIZE=$((MAX_NUM_SEQS * (DSPARK_TOKENS + 1)))
 fi
