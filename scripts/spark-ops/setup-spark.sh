@@ -31,6 +31,10 @@ mkdir -p "${DEST_BIN}" "${DEST_SRC}" "${HOME}/logs" \
 
 install -m 755 "${BIN_SRC}/ensure-hf-cli.sh" "${DEST_BIN}/"
 install -m 755 "${BIN_SRC}/ensure-spark-dashboard.sh" "${DEST_BIN}/"
+install -m 755 "${BIN_SRC}/ensure-spark-token-dashboard.sh" "${DEST_BIN}/"
+# Keep a copy of the token-dashboard app tree for ensure-* when invoked from ~/bin.
+mkdir -p "${DEST_SRC}/spark-token-dashboard"
+rsync -a --delete "${SPARK_DIR}/token-dashboard/" "${DEST_SRC}/spark-token-dashboard/"
 install -m 755 "${BIN_SRC}/spark-privileged-bootstrap.sh" "${DEST_BIN}/"
 install -m 755 "${BIN_SRC}/spark-model.sh" "${DEST_BIN}/spark-model"
 install -m 755 "${BIN_SRC}/spark-model.sh" "${DEST_BIN}/spark-model.sh"
@@ -54,6 +58,11 @@ _dash="$(pai_script spark-dash.sh || true)"
 if [ -n "${_dash}" ]; then
   install -m 755 "${_dash}" "${DEST_BIN}/spark-dash.sh"
   ln -sfn "${DEST_BIN}/spark-dash.sh" "${DEST_BIN}/spark-dash"
+fi
+_tokens="$(pai_script spark-tokens.sh || true)"
+if [ -n "${_tokens}" ]; then
+  install -m 755 "${_tokens}" "${DEST_BIN}/spark-tokens.sh"
+  ln -sfn "${DEST_BIN}/spark-tokens.sh" "${DEST_BIN}/spark-tokens"
 fi
 
 ensure_bashrc_path_ssh_safe() {
@@ -220,6 +229,10 @@ echo "→ DGX Spark Dashboard (host metrics :8787)…"
 bash "${DEST_BIN}/ensure-spark-dashboard.sh" || true
 
 echo ""
+echo "→ Spark token usage dashboard (:8788)…"
+bash "${DEST_BIN}/ensure-spark-token-dashboard.sh" || true
+
+echo ""
 echo "Installed:"
 ls -1 "${DEST_BIN}"/ensure-* "${DEST_BIN}"/spark-* "${DEST_BIN}"/sm \
   "${DEST_BIN}"/vllm-* "${DEST_BIN}"/download-qwen* "${DEST_BIN}"/vo \
@@ -241,5 +254,7 @@ echo "LAN OpenAI bases:"
 echo "  Qwen:     http://spark-local:8000/v1"
 echo "  DeepSeek: http://spark-local:8001/v1"
 echo "  Colibri:  http://spark-local:8003/v1"
+echo "Dashboard: ensure-spark-dashboard.sh [--upgrade]       → http://spark-local:8787"
+echo "Tokens:    ensure-spark-token-dashboard.sh [--upgrade] → http://spark-local:8788"
 echo "Headless (free RAM): sudo spark-headless on && sudo reboot"
 echo "Power-loss: firmware AC→power-on + gb10-clock-cap + crontab @reboot spark-boot.sh"

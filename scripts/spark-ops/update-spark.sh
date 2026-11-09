@@ -99,6 +99,13 @@ else
   echo "⚠️  ensure-spark-dashboard.sh missing — skip dashboard upgrade"
 fi
 
+echo "→ ensure-spark-token-dashboard.sh --upgrade"
+if [ -x "$HOME/bin/ensure-spark-token-dashboard.sh" ]; then
+  "$HOME/bin/ensure-spark-token-dashboard.sh" --upgrade || true
+else
+  echo "⚠️  ensure-spark-token-dashboard.sh missing — skip token dashboard upgrade"
+fi
+
 if [ -n "${PULL}" ]; then
   if command -v sm &>/dev/null || [ -x "$HOME/bin/sm" ]; then
     echo "→ sm pull ${PULL} (images/weights only; not starting models)"
@@ -146,6 +153,11 @@ local_update() {
   echo "→ ensure-spark-dashboard.sh --upgrade"
   if [ -x "${HOME}/bin/ensure-spark-dashboard.sh" ]; then
     "${HOME}/bin/ensure-spark-dashboard.sh" --upgrade || true
+  fi
+
+  echo "→ ensure-spark-token-dashboard.sh --upgrade"
+  if [ -x "${HOME}/bin/ensure-spark-token-dashboard.sh" ]; then
+    "${HOME}/bin/ensure-spark-token-dashboard.sh" --upgrade || true
   fi
 
   if [ -n "${PULL_IMAGES}" ]; then
@@ -196,6 +208,7 @@ if [ "${DO_RSYNC}" -eq 1 ]; then
   rsync -az \
     "${SCRIPT_DIR}/spark-llms.sh" \
     "${SCRIPT_DIR}/spark-dash.sh" \
+    "${SCRIPT_DIR}/spark-tokens.sh" \
     "${SPARK_HOST}:${SPARK_REPO_REMOTE}/scripts/spark-ops/"
   rsync -az --delete \
     --exclude 'experimental/.vllm' \

@@ -62,6 +62,7 @@ echo "=== [4/5] ufw allow DeepSeek + dashboard if firewall active (LAN) ==="
 if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
   ufw allow 8001/tcp comment "Spark DeepSeek OpenAI" || true
   ufw allow 8787/tcp comment "Spark dashboard" || true
+  ufw allow 8788/tcp comment "Spark token usage dashboard" || true
 fi
 
 echo "=== [5/5] firmware reminder: power-on after AC restore ==="

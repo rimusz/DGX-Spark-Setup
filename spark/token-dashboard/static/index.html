@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spark token usage</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="top-left">
+      <h1>Spark token usage</h1>
+      <div id="status" class="status">Starting…</div>
+    </div>
+    <div class="top-right">
+      <label class="filter">
+        <span class="sr">Model filter</span>
+        <select id="modelFilter" aria-label="Model filter">
+          <option value="all">All models</option>
+        </select>
+      </label>
+      <a id="systemLink" class="sys-link" href="http://127.0.0.1:8787" target="_blank" rel="noopener">System dashboard ↗</a>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+  <section class="live" id="live"></section>
+
+  <section class="charts charts-2">
+    <article class="panel">
+      <h2>Input tokens per hour</h2>
+      <p class="hint">Prompt tokens · last 24 hours</p>
+      <div id="inChart" class="bar-chart" role="img" aria-label="Input tokens per hour"></div>
+    </article>
+    <article class="panel">
+      <h2>Output tokens per hour</h2>
+      <p class="hint">Generated tokens (incl. thinking) · last 24 hours</p>
+      <div id="outChart" class="bar-chart" role="img" aria-label="Output tokens per hour"></div>
+    </article>
+  </section>
+
+  <section class="charts">
+    <article class="panel">
+      <h2>Output throughput</h2>
+      <p class="hint">Generated tokens / second (1-minute average), last 3 hours</p>
+      <canvas id="tpChart" width="1200" height="140"></canvas>
+    </article>
+  </section>
+
+  <section class="panel table-panel">
+    <div class="table-head">
+      <h2>By model</h2>
+      <div class="seg" role="group" aria-label="Table range">
+        <button type="button" id="rangeAll" class="seg-btn is-on">All time</button>
+        <button type="button" id="rangeToday" class="seg-btn">Today</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th class="num">Requests</th>
+            <th class="num">Input</th>
+            <th class="num">Output</th>
+            <th class="num">Avg tokens / request</th>
+            <th class="num">Time to first token</th>
+            <th class="num">Reading speed</th>
+            <th class="num">Writing speed</th>
+            <th class="num">Output while busy</th>
+            <th class="num">Peak parallel</th>
+            <th class="num">Last used</th>
+          </tr>
+        </thead>
+        <tbody id="modelBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <script src="/app.js"></script>
+</body>
+</html>

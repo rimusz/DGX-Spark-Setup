@@ -1,0 +1,19 @@
+[Unit]
+Description=Spark token usage dashboard (:8788)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Paths are rewritten by ensure-spark-token-dashboard.sh for the installing user.
+WorkingDirectory=%h/.local/share/spark-token-dashboard
+Environment=TOKEN_DASH_PORT=8788
+Environment=TOKEN_DASH_LLM_PORTS=8000,8001,8002,8003
+Environment=TOKEN_DASH_DB=%h/.local/share/spark-token-dashboard/ledger.sqlite
+Environment=SYSTEM_DASHBOARD_PORT=8787
+ExecStart=/usr/bin/python3 %h/.local/share/spark-token-dashboard/server.py --host 0.0.0.0 --port 8788
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

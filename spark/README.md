@@ -15,7 +15,8 @@
 | **Colibri** | **`:8003`** JustVugg/colibri — **qwen36-35b** (opt-in) |
 | Switcher | `sm` / `spark-model` |
 | Stability | GB10 clock cap **300–2200 MHz** (`gb10-clock-cap.service`) |
-| Dashboard | `http://spark-local:8787` |
+| Dashboard | Host metrics `http://spark-local:8787` — `ensure-spark-dashboard.sh` |
+| Token usage | `http://spark-local:8788` — `ensure-spark-token-dashboard.sh` (scrapes LLM `/metrics`); open with `spark-tokens` |
 
 DeepSeek recipe: [rimusz/DeepSeek-v4-Flash-One-DGX-Spark](https://github.com/rimusz/DeepSeek-v4-Flash-One-DGX-Spark) (`sm pull deepseek` → `~/code/dsv4-exl3`).  
 Colibri: [JustVugg/colibri](https://github.com/JustVugg/colibri) (`sm pull colibri` → `~/code/colibri`, weights `~/colibri-models`).
@@ -38,10 +39,14 @@ spark/
 │   ├── spark-headless.sh           # multi-user vs graphical (free RAM)
 │   ├── ensure-hf-cli.sh
 │   ├── ensure-spark-dashboard.sh
+│   ├── ensure-spark-token-dashboard.sh
 │   └── spark-privileged-bootstrap.sh
+├── token-dashboard/                # token usage UI (:8788)
 ├── models/deepseek/                # EXL3 + ds4 wrappers
 ├── models/colibri/                 # JustVugg/colibri qwen36-35b (CUDA)
-└── systemd/gb10-clock-cap.service
+└── systemd/
+    ├── gb10-clock-cap.service
+    └── spark-token-dashboard.service  # template; ensure-spark-token-dashboard.sh installs user unit
 ```
 
 ---

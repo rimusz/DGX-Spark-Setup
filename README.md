@@ -94,7 +94,7 @@ VLLM_MAX_MODEL_LEN=262144 VLLM_MAX_NUM_SEQS=4 sm start qwen
 | DeepSeek | `http://spark-local:8001/v1` or `http://YOUR_LAN_IP:8001/v1` |
 | Colibri | `http://spark-local:8003/v1` or `http://YOUR_LAN_IP:8003/v1` |
 
-Optional dashboard: `:8787` (loopback + LAN).
+Optional dashboards (loopback + LAN): host metrics `:8787`, token usage `:8788` (`ensure-spark-token-dashboard.sh` / `spark-tokens`).
 
 ---
 
