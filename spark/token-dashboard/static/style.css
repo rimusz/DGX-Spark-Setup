@@ -1,13 +1,14 @@
 :root {
-  --bg: #0f1115;
-  --panel: #171a21;
-  --panel-2: #1c2029;
+  --bg: #0b0d11;
+  --panel: #151820;
+  --panel-2: #1a1e27;
   --border: #2a303c;
-  --text: #e8ecf4;
+  --text: #f2f4f8;
   --muted: #8b93a7;
-  --blue: #4f8cff;
-  --orange: #f0a35e;
-  --green: #3ecf8e;
+  --blue: #2ea0ff;
+  --orange: #ff9a2e;
+  --green: #3ddc84;
+  --link: #4f8cff;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
@@ -55,7 +56,7 @@ body { padding: 20px 24px 48px; max-width: 1400px; margin: 0 auto; }
   height: 9px;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.22);
+  box-shadow: 0 0 0 3px rgba(61, 220, 132, 0.22);
 }
 .status.is-off {
   color: var(--muted);
@@ -87,12 +88,33 @@ body { padding: 20px 24px 48px; max-width: 1400px; margin: 0 auto; }
   padding: 7px 10px;
 }
 .sys-link {
-  color: var(--blue);
+  color: var(--link);
   text-decoration: none;
   font-size: 13px;
   white-space: nowrap;
 }
 .sys-link:hover { text-decoration: underline; }
+
+.swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.swatch.in { background: var(--blue); }
+.swatch.out { background: var(--orange); }
+.sub-split {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.sub-split span {
+  display: inline-flex;
+  align-items: center;
+}
 
 .kpis, .live {
   display: grid;
@@ -255,15 +277,21 @@ th {
 th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
 td.num { font-family: var(--mono); font-size: 12px; }
 .model-cell { font-weight: 560; }
-.badge {
-  display: inline-block;
+.running {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   margin-left: 8px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: rgba(62, 207, 142, 0.15);
   color: var(--green);
   font-size: 11px;
   font-weight: 500;
+}
+.running .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 2px rgba(61, 220, 132, 0.2);
 }
 
 @media (max-width: 980px) {

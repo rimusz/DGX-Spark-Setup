@@ -44,10 +44,14 @@
     return new Date(ts * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }
 
-  function card(label, value, sub) {
+  function card(label, value, subHtml) {
     return `<div class="card"><div class="label">${label}</div><div class="value">${value}</div>${
-      sub ? `<div class="sub">${sub}</div>` : ""
+      subHtml ? `<div class="sub">${subHtml}</div>` : ""
     }</div>`;
+  }
+
+  function ioSub(prompt, generation) {
+    return `<div class="sub-split"><span><i class="swatch in" aria-hidden="true"></i>${fmtTokens(prompt)} in</span><span><i class="swatch out" aria-hidden="true"></i>${fmtTokens(generation)} out</span></div>`;
   }
 
   function renderBarChart(el, values, color) {
@@ -152,10 +156,10 @@
 
     const k = data.kpis;
     $("kpis").innerHTML = [
-      card("Tokens today", fmtTokens(k.today.total), `${fmtTokens(k.today.prompt)} in · ${fmtTokens(k.today.generation)} out`),
-      card("Yesterday", fmtTokens(k.yesterday.total), `${fmtTokens(k.yesterday.prompt)} in · ${fmtTokens(k.yesterday.generation)} out`),
-      card("Last 24 hours", fmtTokens(k.last_24h.total), `${fmtTokens(k.last_24h.prompt)} in · ${fmtTokens(k.last_24h.generation)} out`),
-      card("All time", fmtTokens(k.all_time.total), `${fmtTokens(k.all_time.prompt)} in · ${fmtTokens(k.all_time.generation)} out`),
+      card("Tokens today", fmtTokens(k.today.total), ioSub(k.today.prompt, k.today.generation)),
+      card("Yesterday", fmtTokens(k.yesterday.total), ioSub(k.yesterday.prompt, k.yesterday.generation)),
+      card("Last 24 hours", fmtTokens(k.last_24h.total), ioSub(k.last_24h.prompt, k.last_24h.generation)),
+      card("All time", fmtTokens(k.all_time.total), ioSub(k.all_time.prompt, k.all_time.generation)),
     ].join("");
 
     const live = data.live;
@@ -177,9 +181,13 @@
       card("KV cache used", (live.kv_cache_pct || 0).toFixed(1) + "%", "context memory in use"),
     ].join("");
 
+    const css = getComputedStyle(document.documentElement);
+    const blue = (css.getPropertyValue("--blue") || "#2ea0ff").trim();
+    const orange = (css.getPropertyValue("--orange") || "#ff9a2e").trim();
+
     const hourly = data.hourly || [];
-    renderBarChart($("inChart"), hourly.map((h) => ({ y: h.prompt, ts: h.ts })), "#4f8cff");
-    renderBarChart($("outChart"), hourly.map((h) => ({ y: h.generation, ts: h.ts })), "#f0a35e");
+    renderBarChart($("inChart"), hourly.map((h) => ({ y: h.prompt, ts: h.ts })), blue);
+    renderBarChart($("outChart"), hourly.map((h) => ({ y: h.generation, ts: h.ts })), orange);
 
     const tp = data.throughput || [];
     const nowMin = Math.floor(Date.now() / 1000 / 60) * 60;
@@ -188,7 +196,7 @@
     for (let t = nowMin - 3 * 3600; t <= nowMin; t += 60) {
       series.push({ ts: t, y: byTs[t] || 0 });
     }
-    drawLine($("tpChart"), series, "#f0a35e");
+    drawLine($("tpChart"), series, orange);
 
     renderTable(data);
   }
@@ -210,7 +218,7 @@
         ? src.avg_tokens_per_request
         : (req ? (inp + out) / req : null);
       return `<tr>
-        <td class="model-cell">${r.model}${r.running ? '<span class="badge">running</span>' : ""} <span style="color:#8b93a7;font-weight:400">:${r.port}</span></td>
+        <td class="model-cell">${r.model}${r.running ? '<span class="running"><span class="dot" aria-hidden="true"></span>running</span>' : ""} <span style="color:#8b93a7;font-weight:400">:${r.port}</span></td>
         <td class="num">${Math.round(req).toLocaleString()}</td>
         <td class="num">${fmtTokens(inp)}</td>
         <td class="num">${fmtTokens(out)}</td>
